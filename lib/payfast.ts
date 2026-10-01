@@ -88,15 +88,37 @@ export function getPayFastConfig(): PayFastConfig {
 }
 
 export function getPublicOrigin(request?: Request): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "")
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
   if (configured) {
-    return configured
+    const configuredUrl = new URL(configured)
+    const isLocalhost =
+      configuredUrl.hostname === "localhost" ||
+      configuredUrl.hostname.endsWith(".localhost") ||
+      configuredUrl.hostname === "127.0.0.1" ||
+      configuredUrl.hostname === "[::1]"
+
+    if (configuredUrl.protocol !== "http:" && configuredUrl.protocol !== "https:") {
+      throw new Error("NEXT_PUBLIC_SITE_URL must use HTTP or HTTPS")
+    }
+
+    if (process.env.NODE_ENV !== "production" || !isLocalhost) {
+      return configuredUrl.origin
+    }
   }
 
   if (request) {
-    const host = request.headers.get("host") || "localhost"
-    const protocol = host.includes("localhost") ? "http" : "https"
+    const host =
+      request.headers.get("x-forwarded-host")?.split(",")[0].trim() ||
+      request.headers.get("host") ||
+      "localhost"
+    const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0].trim()
+    const protocol = forwardedProtocol || (host.includes("localhost") ? "http" : "https")
     return `${protocol}://${host}`
+  }
+
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+  if (vercelHost) {
+    return `https://${vercelHost}`
   }
 
   throw new Error("NEXT_PUBLIC_SITE_URL is required for PayFast callbacks")
