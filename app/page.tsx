@@ -56,7 +56,7 @@ export default function HomePage() {
 
             <p className="text-gray-300 text-sm md:text-base mt-4 mb-8 max-w-md leading-relaxed">
               Plan the perfect Umcimbi in minutes. Tell us how many people are
-              coming, your budget and your braai style. We'll calculate the
+              coming, your budget and your braai style. We&apos;ll calculate the
               perfect Eskort shopping list for you.
             </p>
 
@@ -64,7 +64,7 @@ export default function HomePage() {
             <div className="inline-flex items-center gap-2 bg-eskort-yellow/10 border border-eskort-yellow/30 rounded-full px-3 py-1.5 mb-6">
               <Award size={16} className="text-eskort-yellow" />
               <span className="text-eskort-yellow text-xs font-semibold">
-                SA's #1 Braai Planner
+                SA&apos;s #1 Braai Planner
               </span>
             </div>
 
@@ -168,10 +168,10 @@ export default function HomePage() {
             READY TO PLAN YOUR BRAAI?
           </h2>
           <p className="text-red-200 mb-6 text-sm">
-            Tell us your event details and we'll build the perfect Eskort shopping list.
+            Tell us your event details and we&apos;ll build the perfect Eskort shopping list.
           </p>
           <Link href="/event-details" className="btn-primary inline-block">
-            Let's Plan Your Braai
+            Let&apos;s Plan Your Braai
           </Link>
         </div>
       </section>

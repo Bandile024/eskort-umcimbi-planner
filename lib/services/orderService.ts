@@ -1,8 +1,12 @@
-import { supabase } from '@/lib/supabase'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import type { CreateOrderData, Order, OrderItem, OrderWithItems, OrderStatus, PaymentStatus, AdminOrderFilters, PaginatedOrders, DashboardStats } from '@/lib/types'
 
 type ServerClient = ReturnType<typeof createServerSupabaseClient>
+
+async function getDefaultClient() {
+  const { supabase } = await import('@/lib/supabase')
+  return supabase
+}
 
 export class OrderService {
   static generateOrderNumber(): string {
@@ -10,12 +14,13 @@ export class OrderService {
   }
 
   static async createOrder(data: CreateOrderData, userId?: string): Promise<Order | null> {
+    const client = await getDefaultClient()
     const orderNumber = this.generateOrderNumber()
     const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0)
     const deliveryFee = data.delivery_fee ?? 60
     const totalAmount = subtotal + deliveryFee
 
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await client
       .from('orders')
       .insert({
         order_number: orderNumber,
@@ -47,13 +52,13 @@ export class OrderService {
       line_total: item.quantity * item.unit_price,
     }))
 
-    const { error: itemsError } = await supabase
+    const { error: itemsError } = await client
       .from('order_items')
       .insert(orderItems)
 
     if (itemsError) {
       console.error('Order items creation error:', itemsError)
-      await supabase.from('orders').delete().eq('id', order.id)
+      await client.from('orders').delete().eq('id', order.id)
       return null
     }
 
@@ -61,7 +66,7 @@ export class OrderService {
   }
 
   static async getOrderById(id: string, serverClient?: ServerClient): Promise<OrderWithItems | null> {
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     const { data: order, error: orderError } = await client
       .from('orders')
       .select('*')
@@ -89,7 +94,8 @@ export class OrderService {
   }
 
   static async getOrderByNumber(orderNumber: string): Promise<OrderWithItems | null> {
-    const { data: order, error: orderError } = await supabase
+    const client = await getDefaultClient()
+    const { data: order, error: orderError } = await client
       .from('orders')
       .select('*')
       .eq('order_number', orderNumber)
@@ -97,12 +103,12 @@ export class OrderService {
 
     if (orderError || !order) return null
 
-    const { data: items } = await supabase
+    const { data: items } = await client
       .from('order_items')
       .select('*')
       .eq('order_id', order.id)
 
-    const { data: history } = await supabase
+    const { data: history } = await client
       .from('order_status_history')
       .select('*')
       .eq('order_id', order.id)
@@ -116,7 +122,7 @@ export class OrderService {
   }
 
   static async getUserOrders(userId: string, serverClient?: ServerClient): Promise<OrderWithItems[]> {
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     const { data: orders, error } = await client
       .from('orders')
       .select('*')
@@ -158,7 +164,7 @@ export class OrderService {
       sort = 'newest',
     } = filters
 
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     let query = client
       .from('orders')
       .select('*', { count: 'exact' })
@@ -195,7 +201,7 @@ export class OrderService {
   }
 
   static async updateOrderStatus(data: { order_id: string; new_status: OrderStatus; notes?: string }, serverClient?: ServerClient): Promise<boolean> {
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     const { error } = await client
       .from('orders')
       .update({
@@ -212,7 +218,7 @@ export class OrderService {
   }
 
   static async updatePaymentStatus(data: { order_id: string; payment_status: PaymentStatus }, serverClient?: ServerClient): Promise<boolean> {
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     const { error } = await client
       .from('orders')
       .update({ payment_status: data.payment_status })
@@ -226,7 +232,7 @@ export class OrderService {
   }
 
   static async getDashboardStats(serverClient?: ServerClient): Promise<DashboardStats> {
-    const client = serverClient ?? supabase
+    const client = serverClient ?? await getDefaultClient()
     const { data: orders } = await client
       .from('orders')
       .select('order_status, total_amount, payment_status')

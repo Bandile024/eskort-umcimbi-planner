@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth, getUserRole } from "@/lib/auth-context";
 import { getSafeRedirect, ORDER_AUTH_MESSAGE } from "@/lib/auth-flow";
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = getSafeRedirect(searchParams.get("redirect"));
@@ -128,7 +128,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-gray-500 text-xs mt-6">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href={`/signup?redirect=${encodeURIComponent(redirectParam)}${isOrderAuth ? "&reason=order" : ""}`} className="text-eskort-yellow font-semibold hover:underline">
               Create an account
             </Link>
@@ -143,5 +143,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-eskort-dark-bg" />}>
+      <LoginContent />
+    </Suspense>
   );
 }

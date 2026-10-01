@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { createSupabaseAdminClient } from "@/lib/supabase-admin"
 import { isPayFastRequest, verifyPayFastSignature, mapPayFastStatus } from "@/lib/payfast"
 
 export async function POST(request: Request) {
@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing m_payment_id" }, { status: 400 })
   }
 
+  const supabaseAdmin = createSupabaseAdminClient()
   const status = mapPayFastStatus(fields.payment_status as string | undefined)
 
   const { data: transaction, error: txError } = await supabaseAdmin

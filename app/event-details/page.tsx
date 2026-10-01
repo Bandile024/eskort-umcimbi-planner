@@ -100,7 +100,7 @@ export default function EventDetailsPage() {
         {/* ── WHAT'S THE OCCASION ── */}
         <section className="mb-8">
           <h2 className="text-lg font-bold text-eskort-black mb-4 uppercase tracking-wide">
-            What's the occasion?
+            What&apos;s the occasion?
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {occasions.map((occ) => (
@@ -211,7 +211,7 @@ export default function EventDetailsPage() {
               <h3 className="text-white font-bold text-base uppercase tracking-wide">
                 Budget
               </h3>
-              <p className="text-gray-400 text-xs mt-0.5">What's your total braai budget?</p>
+              <p className="text-gray-400 text-xs mt-0.5">What&apos;s your total braai budget?</p>
             </div>
             <span className="text-eskort-yellow font-bold text-xl">
               R{budget.toLocaleString()}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Package, Truck, Home } from "lucide-react";
@@ -40,7 +40,7 @@ const orderSteps = [
   { id: "delivered", label: "Delivered", sub: "Est. today", icon: Home, done: false },
 ];
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
@@ -209,5 +209,13 @@ export default function OrderConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-eskort-dark-bg" />}>
+      <OrderConfirmationContent />
+    </Suspense>
   );
 }
