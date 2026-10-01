@@ -1,0 +1,8 @@
+{
+  "name": "Eskort Umcimbi Planner",
+  "description": "Plan the perfect Umcimbi braai in minutes with portions, budgets, packages, and ordering.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
