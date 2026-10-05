@@ -24,13 +24,13 @@ const braaiStyles = [
 ];
 
 const guestPresets = [4, 8, 12, 20, 30];
-const kidsPresets = [0, 2, 4, 6];
-const uninvitedPresets = [0, 2, 4, 6];
+const kidsPresets = [2, 4, 6, 8, 10];
+const uninvitedPresets = [2, 4, 6, 8, 10];
 
 export default function EventDetailsPage() {
   const router = useRouter();
   const [selectedOccasion, setSelectedOccasion] = useState("");
-  const [guests, setGuests] = useState(4);
+  const [guests, setGuests] = useState(0);
   const [kids, setKids] = useState(0);
   const [uninvited, setUninvited] = useState(0);
   const [budget, setBudget] = useState<number | "">("");
