@@ -288,8 +288,10 @@ const buildRecommendedPackages = (
         .filter((product) => categoryFor(product) === category && product.price > 0)
         .sort((a, b) => a.price - b.price);
       const lastIndex = pricedProducts.length - 1;
-      const priceRangeIndexes = [0, Math.floor(lastIndex / 3), Math.floor((lastIndex * 2) / 3), lastIndex];
-      const selectedProducts = [...new Set(priceRangeIndexes.map((index) => pricedProducts[index]).filter(Boolean))];
+      const priceRangeIndexes = Array.from({ length: 12 }, (_, index) =>
+        Math.round((lastIndex * index) / 11)
+      );
+      const selectedProducts = Array.from(new Set(priceRangeIndexes.map((index) => pricedProducts[index]).filter(Boolean)));
 
       return [
         category,
@@ -311,10 +313,6 @@ const buildRecommendedPackages = (
     template.length > 0 && all.findIndex((candidate) => candidate.join("|") === template.join("|")) === index
   );
   const mix = styleMixes[event?.selectedStyle ?? "classic"] ?? styleMixes.classic;
-  const sauces = products
-    .filter((product) => /sauce/.test(normalizeName(product.name)) && product.price > 0)
-    .sort((a, b) => a.price - b.price);
-  const sauce = sauces[0];
   const reasonFor = (category: string) => {
     const reasons: Record<string, string> = {
       wors: "A familiar South African braai staple that is easy to portion and share.",
@@ -334,7 +332,7 @@ const buildRecommendedPackages = (
         : "Complete the braai with pap, chakalaka, tomato-onion relish, braai broodjies and a green salad.";
 
   const createRecommendations = (coverage: number) => {
-    const recommendations: Array<RecommendedPackage & { score: number }> = [];
+    const recommendations: Array<Omit<RecommendedPackage, "priceTier"> & { score: number }> = [];
     const usedCombinations = new Set<string>();
 
     const getSelections = (template: string[]): ProductItem[][] =>
@@ -380,52 +378,66 @@ const buildRecommendedPackages = (
           };
         });
 
-        const meatPrice = meatDetails.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
         const meatWeight = meatDetails.reduce((sum, item) => sum + item.packGrams * item.edibleYield * item.quantity, 0);
-        const serves = Math.min(totalPeople, Math.floor(meatWeight / (targetMeatGrams / totalPeople)));
-        const fullyServesEvent = serves >= totalPeople;
-        const productsInPackage: RecommendedProduct[] = meatDetails.map(({ product, quantity, why, alternative }) => ({
+        const baseServes = Math.max(1, Math.min(totalPeople, Math.floor(meatWeight / (targetMeatGrams / totalPeople))));
+        const quantityScale = totalPeople / baseServes;
+        const scaledMeatDetails = meatDetails.map((item) => ({
+          ...item,
+          quantity: Math.min(3, Math.ceil(item.quantity * quantityScale)),
+        }));
+        const hasQuantityVariety = new Set(scaledMeatDetails.map((item) => item.quantity)).size > 1;
+
+        if (!hasQuantityVariety && scaledMeatDetails.length > 1) {
+          const quantityAdjustment = [...scaledMeatDetails].sort((a, b) =>
+            (mix[a.category] ?? 1) - (mix[b.category] ?? 1)
+          )[0];
+          const adjustmentIndex = scaledMeatDetails.findIndex((item) => item === quantityAdjustment);
+          scaledMeatDetails[adjustmentIndex] = {
+            ...quantityAdjustment,
+            quantity: quantityAdjustment.quantity > 1
+              ? quantityAdjustment.quantity - 1
+              : Math.min(3, quantityAdjustment.quantity + 1),
+          };
+        }
+        const scaledMeatWeight = scaledMeatDetails.reduce(
+          (sum, item) => sum + item.packGrams * item.edibleYield * item.quantity,
+          0
+        );
+        const productsInPackage: RecommendedProduct[] = scaledMeatDetails.map(({ product, quantity, why, alternative }) => ({
           name: product.name,
           image: product.image,
           quantity,
           why,
           alternative,
         }));
-        let price = meatPrice;
-
-        if (sauce) {
-          const sauceQuantity = Math.max(1, Math.ceil(adultEquivalentGuests / 12));
-          if (price + sauce.price * sauceQuantity <= budget) {
-            productsInPackage.push({
-              name: sauce.name,
-              image: sauce.image,
-              quantity: sauceQuantity,
-              why: "A complementary Eskort sauce gives guests an easy serving option at the table.",
-            });
-            price += sauce.price * sauceQuantity;
-          }
-        }
-
-        price = Number(price.toFixed(2));
+        const price = Number(
+          scaledMeatDetails.reduce((sum, item) => sum + item.product.price * item.quantity, 0).toFixed(2)
+        );
         if (price > budget || usedCombinations.has(key)) return;
         usedCombinations.add(key);
 
-        const productScore = meatDetails.reduce((sum, item) => sum + scoreProduct(item.product, item.category), 0);
+        const serves = Math.min(
+          totalPeople,
+          Math.floor(scaledMeatWeight / (targetMeatGrams / totalPeople))
+        );
+        if (serves < 1) return;
+
+        const productScore = scaledMeatDetails.reduce((sum, item) => sum + scoreProduct(item.product, item.category), 0);
         const budgetFit = 24 - Math.abs((price / budget) - 0.82) * 24;
-        const coverageScore = Math.min(1, meatWeight / targetMeatGrams) * 50;
-        const excessRatio = Math.max(0, meatWeight / targetMeatGrams - 1);
+        const coverageScore = Math.min(1, serves / totalPeople) * 50;
+        const excessRatio = Math.max(0, scaledMeatWeight / targetMeatGrams - 1);
         const mixLabel = template.length === 1 ? "A focused, budget-led selection" : "A balanced mix of Eskort braai favourites";
 
         recommendations.push({
           id: `recommended-${templateIndex}-${selected.map((product) => product.id).join("-")}-${coverage}`,
           name: `${event?.selectedStyle === "potjie" ? "Potjie" : "Braai"} Feast`,
-          tagline: fullyServesEvent
+          tagline: serves === totalPeople
             ? `${mixLabel} portioned for ${totalPeople} guests.`
-            : `Budget-led portions estimated for ${serves} of ${totalPeople} guests; increase the budget to cover everyone.`,
+            : `${mixLabel}, estimated to serve ${serves} of ${totalPeople} guests within budget.`,
           price,
           serves,
-          perPerson: Math.round(price / Math.max(1, serves)),
-          badge: fullyServesEvent ? "Best match" : "Budget alternative",
+          perPerson: Math.round(price / serves),
+          badge: "Best match",
           image: meatDetails[0].product.image,
           bgColor: "#1a2a1a",
           products: productsInPackage,
@@ -438,15 +450,8 @@ const buildRecommendedPackages = (
     return recommendations;
   };
 
-  let recommendations = createRecommendations(1);
-  if (recommendations.length === 0) {
-    for (let coverage = 0.9; coverage >= 0.15; coverage -= 0.05) {
-      recommendations = createRecommendations(Number(coverage.toFixed(2)));
-      if (recommendations.length > 0) break;
-    }
-  }
+  const recommendations = [1, 0.8, 0.6, 0.4, 0.25].flatMap(createRecommendations);
 
-  const usedLeadProducts = new Set<string>();
   const usedPackageNames = new Set<string>();
   const packagePrefix = event?.selectedStyle === "potjie"
     ? "Potjie Gathering"
@@ -462,16 +467,51 @@ const buildRecommendedPackages = (
             wedding: "Celebration Braai",
             corporate: "Team Braai",
           }[event?.selectedOccasion ?? "family-braai"] ?? "Classic Braai");
-  const selectedRecommendations = recommendations
+  const seenPackageCombinations = new Set<string>();
+  const distinctRecommendations = recommendations
     .sort((a, b) => b.score - a.score || a.price - b.price)
     .filter((recommendation) => {
-      const leadProduct = normalizeName(recommendation.products[0]?.name ?? "");
-      if (!leadProduct || usedLeadProducts.has(leadProduct)) return false;
-      usedLeadProducts.add(leadProduct);
+      const combination = recommendation.products
+        .map((product) => normalizeName(product.name))
+        .sort()
+        .join("|");
+      if (seenPackageCombinations.has(combination)) return false;
+      seenPackageCombinations.add(combination);
       return true;
-    })
-    .slice(0, 10);
-  const sortedPrices = selectedRecommendations.map((recommendation) => recommendation.price).sort((a, b) => a - b);
+    });
+  const usedProducts = new Set<string>();
+  const usedPrices = new Set<string>();
+  const selectedRecommendations: Array<typeof distinctRecommendations[number]> = [];
+  const targetDiscounts = [10, 20, 30, 40, 10, 20, 30, 40, 10, 20];
+
+  targetDiscounts.forEach((targetDiscount) => {
+    const targetPrice = budget * (1 - targetDiscount / 100);
+    const previousPackagePrice = selectedRecommendations.length > 0
+      ? selectedRecommendations[selectedRecommendations.length - 1].price
+      : Infinity;
+    const candidate = distinctRecommendations
+      .filter((recommendation) =>
+        recommendation.price < budget &&
+        recommendation.price < previousPackagePrice &&
+        !usedPrices.has(recommendation.price.toFixed(2)) &&
+        recommendation.products.every((product) => !usedProducts.has(normalizeName(product.name)))
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(a.price - targetPrice) - Math.abs(b.price - targetPrice) ||
+          b.score - a.score
+      )[0];
+
+    if (!candidate) return;
+
+    selectedRecommendations.push(candidate);
+    usedPrices.add(candidate.price.toFixed(2));
+    candidate.products.forEach((product) => usedProducts.add(normalizeName(product.name)));
+  });
+
+  const sortedPrices = selectedRecommendations
+    .map((recommendation) => recommendation.price)
+    .sort((a, b) => a - b);
   const lowPriceCutoff = sortedPrices[Math.floor((sortedPrices.length - 1) / 3)] ?? 0;
   const highPriceCutoff = sortedPrices[Math.ceil(((sortedPrices.length - 1) * 2) / 3)] ?? 0;
 
@@ -503,7 +543,7 @@ const buildRecommendedPackages = (
       return {
         ...recommendation,
         name: index === 0 ? `Top Pick - ${packageName}` : packageName,
-        badge: index === 0 ? "Top match" : index < 3 ? "Great fit" : "Within budget",
+        badge: `${Math.round((1 - recommendation.price / budget) * 100)}% under budget`,
         priceTier: lowPriceCutoff === highPriceCutoff
           ? "Balanced"
           : recommendation.price <= lowPriceCutoff
@@ -520,7 +560,7 @@ export default function RecommendedPackagesPage() {
   const [detailsPackageId, setDetailsPackageId] = useState<string | null>(null);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [visibleCount, setVisibleCount] = useState(4);
+  const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
     const saved = localStorage.getItem("eskort-braai-event");
@@ -679,7 +719,7 @@ export default function RecommendedPackagesPage() {
 
         {products.length > 0 && packages.length === 0 ? (
           <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
-            Even a smaller starter basket is above this budget using the current price estimates. Try increasing the budget, reducing the guest count, or building your own braai.
+            No package could be built within this budget using the current product selection and price estimates. Try increasing the budget, reducing the guest count, or building your own braai.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 items-stretch">
@@ -740,6 +780,16 @@ export default function RecommendedPackagesPage() {
             </div>
             ))}
           </div>
+        )}
+
+        {hasMorePackages && (
+          <button
+            type="button"
+            onClick={() => setVisibleCount(Math.min(visibleCount + 5, 10))}
+            className="mb-8 w-full rounded-xl bg-eskort-red py-3 text-sm font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-90"
+          >
+            See More
+          </button>
         )}
 
         {detailsPackage && (
@@ -828,8 +878,12 @@ export default function RecommendedPackagesPage() {
           </button>
         </div>
 
-        <button className="w-full border border-gray-400 rounded-lg py-3 text-sm font-semibold text-gray-600 hover:border-gray-600 transition-colors mb-3">
-          ⚖️ View Fair Share Portion Preview
+        <button
+          type="button"
+          disabled
+          className="mb-3 w-full cursor-not-allowed rounded-lg border border-gray-300 py-3 text-sm font-semibold text-gray-500"
+        >
+          ⚖️ View Fair Share Portion Preview (Coming Soon)
         </button>
       </div>
     </div>

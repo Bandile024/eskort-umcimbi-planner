@@ -114,7 +114,10 @@ export default function CheckoutPage() {
       }
 
       const result = await response.json();
-      const { url, fields } = result;
+      const { url, fields, orderId } = result;
+      if (typeof orderId !== "string" || !orderId) {
+        throw new Error("Checkout response did not include an order ID");
+      }
 
       const payfastForm = document.createElement("form");
       payfastForm.method = "POST";
@@ -129,6 +132,7 @@ export default function CheckoutPage() {
       });
 
       document.body.appendChild(payfastForm);
+      sessionStorage.setItem("eskort-pending-order-id", orderId);
       submittedToPayfast = true;
       payfastForm.submit();
     } catch (error) {
@@ -481,7 +485,12 @@ export default function CheckoutPage() {
                   </span>
                 </label>
                 <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-200">
-                  Testing only: Card Number 4000 0000 0000 0002, Expiry 12/30, CVV 123.
+                  <strong className="block">Test Card:</strong>
+                  Card Number: 4000 0000 0000 0002
+                  <br />
+                  Expiry: 12/30
+                  <br />
+                  CVV: 123
                 </p>
               </div>
             </div>

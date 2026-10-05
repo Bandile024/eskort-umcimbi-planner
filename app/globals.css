@@ -107,8 +107,8 @@ body {
   @apply px-4 py-2 rounded bg-eskort-dark-card-2 text-white text-sm font-medium hover:bg-eskort-yellow hover:text-black transition-colors duration-150 border border-gray-700;
 }
 
-.qty-preset-active {
-  @apply qty-preset bg-eskort-yellow text-black border-eskort-yellow;
+.qty-preset.qty-preset-active {
+  @apply bg-eskort-yellow text-black border-eskort-yellow;
 }
 
 /* Nav link */

@@ -30,7 +30,7 @@ const uninvitedPresets = [0, 2, 4, 6];
 export default function EventDetailsPage() {
   const router = useRouter();
   const [selectedOccasion, setSelectedOccasion] = useState("");
-  const [guests, setGuests] = useState(0);
+  const [guests, setGuests] = useState(4);
   const [kids, setKids] = useState(0);
   const [uninvited, setUninvited] = useState(0);
   const [budget, setBudget] = useState<number | "">("");
@@ -277,11 +277,7 @@ export default function EventDetailsPage() {
         </section>
 
         {/* ── SUMMARY BAR ── */}
-        <div className="bg-eskort-dark-card rounded-xl p-4 mb-6 border border-gray-700 flex flex-wrap gap-4 text-sm text-gray-300">
-          <span>
-            <span className="text-white font-semibold">{guests + uninvited}</span> guests
-          </span>
-          <span>·</span>
+        <div className="mb-6 flex flex-wrap gap-3 rounded-xl border border-gray-700 bg-eskort-dark-card p-4 text-sm text-gray-300">
           <span>
             Budget <span className="text-eskort-yellow font-semibold">R{(budget || 0).toLocaleString()}</span>
           </span>

@@ -383,8 +383,8 @@ export default function BuildMyBraaiPage() {
     setPromoIndex((current) => (promoProducts.length === 0 ? 0 : (current + 1) % promoProducts.length));
 
   return (
-    <div className="min-h-screen bg-eskort-cream-light">
-      <div className="max-w-5xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-eskort-cream-light xl:h-[calc(100vh-4rem)] xl:min-h-0 xl:overflow-hidden">
+      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 xl:h-full xl:min-h-0 xl:w-full">
         <Link
           href="/recommended-packages"
           className="inline-flex items-center gap-1 text-eskort-red text-sm font-semibold mb-4 hover:opacity-80"
@@ -393,7 +393,7 @@ export default function BuildMyBraaiPage() {
           Back
         </Link>
 
-        <div className="flex items-start justify-between mb-6">
+        <div className="mb-6 flex shrink-0 items-start justify-between">
           <div>
             <h1 className="font-display whitespace-nowrap text-4xl sm:text-5xl md:text-6xl leading-none tracking-wide">
               <span className="text-blue-700">BUILD MY</span>
@@ -474,7 +474,7 @@ export default function BuildMyBraaiPage() {
           </div>
         </div>}
 
-        <div className="flex border-b border-gray-300 mb-6 overflow-x-auto">
+        <div className="mb-6 flex shrink-0 overflow-x-auto border-b border-gray-300">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -493,9 +493,10 @@ export default function BuildMyBraaiPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 mb-8">
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mb-8 grid grid-cols-1 gap-6 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
+              <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
                 {productItems.length === 0 ? (
                   <div className="md:col-span-2 rounded-xl border border-dashed border-gray-300 bg-white/40 p-8 text-center text-gray-500">
                     Loading products...
@@ -545,13 +546,13 @@ export default function BuildMyBraaiPage() {
                   {seeMoreCount < 2 ? "SEE MORE" : "SEE ALL"}
                 </button>
               )}
+              </div>
             </div>
 
-            <aside className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm h-fit sticky top-20 self-start">
-              <div className="flex items-center justify-between mb-4">
+            <aside className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm xl:h-full">
+              <div className="mb-4 flex shrink-0 items-center justify-between">
                 <h3 className="text-2xl font-bold text-eskort-black">Your Order</h3>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{itemCount} items</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -569,7 +570,7 @@ export default function BuildMyBraaiPage() {
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
                 {selectedProducts.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
                     No items selected yet.
@@ -621,7 +622,7 @@ export default function BuildMyBraaiPage() {
                 )}
               </div>
 
-              <div className="mt-6 border-t border-gray-200 pt-4">
+              <div className="mt-6 shrink-0 border-t border-gray-200 pt-4">
                 <div className="flex items-center justify-between text-sm text-gray-600">
                   <span>Subtotal</span>
                   <span className="font-bold text-eskort-black">R{subtotal.toFixed(2)}</span>

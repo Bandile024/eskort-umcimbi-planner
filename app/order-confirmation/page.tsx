@@ -76,6 +76,12 @@ function OrderConfirmationContent() {
         }
 
         setOrder(data as Order);
+        if (sessionStorage.getItem("eskort-pending-order-id") === data.id) {
+          localStorage.removeItem("eskort-checkout-cart");
+          localStorage.removeItem("eskort-selected-package");
+          sessionStorage.removeItem("eskort-pending-order-id");
+          window.dispatchEvent(new Event("eskort-cart-updated"));
+        }
       } catch {
         router.push("/");
       } finally {
