@@ -22,7 +22,7 @@ type CartPayload = {
 export default function CheckoutPage() {
   const { user, loading: authLoading, signIn, signUp } = useAuth();
   const [orderOpen, setOrderOpen] = useState(true);
-  const [selectedCard, setSelectedCard] = useState("visa");
+  const [selectedCard, setSelectedCard] = useState("");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authEmail, setAuthEmail] = useState("");
@@ -30,6 +30,7 @@ export default function CheckoutPage() {
   const [authName, setAuthName] = useState("");
   const [authError, setAuthError] = useState("");
   const [authNotice, setAuthNotice] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -71,7 +72,6 @@ export default function CheckoutPage() {
 
   const deliveryFee = 60;
   const meatAndProteins = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const essentials = 0;
   const grandTotal = subtotal + deliveryFee;
   const perPerson = cartItems.length > 0 ? Math.round(grandTotal / cartItems.reduce((sum, item) => sum + item.quantity, 0)) : 0;
 
@@ -82,6 +82,7 @@ export default function CheckoutPage() {
 
   const submitOrder = async () => {
     setIsPlacingOrder(true);
+    let submittedToPayfast = false;
 
     try {
       const response = await fetch("/api/payfast/checkout", {
@@ -128,20 +129,27 @@ export default function CheckoutPage() {
       });
 
       document.body.appendChild(payfastForm);
+      submittedToPayfast = true;
       payfastForm.submit();
     } catch (error) {
       console.error("Checkout failed:", error);
-      alert("Failed to process checkout. Please try again.");
+      setCheckoutError("Failed to process checkout. Please try again.");
     } finally {
-      setIsPlacingOrder(false);
+      if (!submittedToPayfast) setIsPlacingOrder(false);
     }
   };
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) return;
+    setCheckoutError("");
 
-    if (!form.name || !form.email || !form.phone || !form.address) {
-      alert("Please fill in all delivery details");
+    if (!form.name.trim() || !form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email) || form.phone.replace(/\D/g, "").length !== 10 || !form.address.trim()) {
+      setCheckoutError("Please complete your name, valid email, phone number and delivery address.");
+      return;
+    }
+
+    if (!selectedCard || form.cardNumber.replace(/\D/g, "").length !== 16 || !/^(0[1-9]|1[0-2])\/\d{2}$/.test(form.expiry) || !/^\d{3,4}$/.test(form.cvv)) {
+      setCheckoutError("Select PayFast and enter a valid card number, expiry date and CVV.");
       return;
     }
 
@@ -272,12 +280,6 @@ export default function CheckoutPage() {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Essentials</span>
-                  <span className="text-white font-medium">
-                    R{essentials.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
                   <span>Delivery</span>
                   <span className="text-white font-medium">
                     R{deliveryFee}
@@ -338,7 +340,11 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     value={form.phone}
-                    onChange={(e) => update("phone", e.target.value)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      const formatted = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)].filter(Boolean).join(" ");
+                      update("phone", formatted);
+                    }}
                     className="w-full bg-eskort-dark-card-2 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-eskort-yellow transition-colors"
                     placeholder="082 123 4567"
                   />
@@ -426,7 +432,10 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     value={form.cardNumber}
-                    onChange={(e) => update("cardNumber", e.target.value)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
+                      update("cardNumber", digits.match(/.{1,4}/g)?.join(" ") ?? "");
+                    }}
                     className="w-full bg-eskort-dark-card-2 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-eskort-yellow"
                     placeholder="0000 0000 0000 0000"
                     maxLength={19}
@@ -439,7 +448,10 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       value={form.expiry}
-                      onChange={(e) => update("expiry", e.target.value)}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        update("expiry", digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits);
+                      }}
                       className="w-full bg-eskort-dark-card-2 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-eskort-yellow"
                       placeholder="MM/YY"
                     />
@@ -450,7 +462,7 @@ export default function CheckoutPage() {
                     </label>
                     <input
                       value={form.cvv}
-                      onChange={(e) => update("cvv", e.target.value)}
+                      onChange={(e) => update("cvv", e.target.value.replace(/\D/g, "").slice(0, 4))}
                       className="w-full bg-eskort-dark-card-2 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-eskort-yellow"
                       placeholder="***"
                       maxLength={4}
@@ -468,6 +480,9 @@ export default function CheckoutPage() {
                     Remember this card for future purchases
                   </span>
                 </label>
+                <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-200">
+                  Testing only: Card Number 4000 0000 0000 0002, Expiry 12/30, CVV 123.
+                </p>
               </div>
             </div>
           </div>
@@ -475,12 +490,13 @@ export default function CheckoutPage() {
 
         {/* ── PLACE ORDER ── */}
         <div className="mt-8">
+          {checkoutError && <p role="alert" className="mb-3 rounded-md border border-red-700 bg-red-900/20 px-4 py-3 text-sm text-red-300">{checkoutError}</p>}
           <button
             onClick={handlePlaceOrder}
             disabled={isPlacingOrder}
             className="w-full btn-primary py-5 text-base font-bold tracking-widest"
           >
-            {isPlacingOrder ? "Processing order..." : `🔒 Place Order — R${grandTotal.toFixed(2)}`}
+            {isPlacingOrder ? "Processing Order..." : `🔒 Place Order — R${grandTotal.toFixed(2)}`}
           </button>
           <p className="text-center text-gray-600 text-xs mt-3">
             By placing this order you agree to our{" "}

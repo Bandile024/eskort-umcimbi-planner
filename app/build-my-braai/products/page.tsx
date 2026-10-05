@@ -208,7 +208,7 @@ export default function BraaiProductsPage() {
 function BraaiProductsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabs = ["Main Meat", "Essentials", "Extras"];
+  const tabs = ["Main Meat", "Extras"];
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [activeTab, setActiveTab] = useState("Main Meat");
@@ -244,6 +244,7 @@ function BraaiProductsPageContent() {
       }));
     const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     localStorage.setItem("eskort-checkout-cart", JSON.stringify({ products: cartItems, subtotal }));
+    window.dispatchEvent(new Event("eskort-cart-updated"));
   };
 
   const validTab = useMemo(() => {
@@ -449,13 +450,6 @@ function BraaiProductsPageContent() {
                 </div>
 
                 <button
-                  type="button"
-                  onClick={() => router.push(`/build-my-braai/products?tab=${encodeURIComponent("Essentials")}`)}
-                  className="w-full btn-primary mt-4 py-2.5"
-                >
-                  Add Essentials →
-                </button>
-                <button
                   onClick={() => {
                     if (selectedProducts.length === 0) return;
                     router.push("/checkout");
@@ -467,7 +461,7 @@ function BraaiProductsPageContent() {
                       : "btn-primary"
                   }`}
                 >
-                  Skip to Checkout →
+                  Checkout →
                 </button>
               </div>
             </div>

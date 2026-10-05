@@ -25,6 +25,7 @@ type ProductItem = {
 
 type RecommendedProduct = {
   name: string;
+  image: string;
   quantity: number;
   why: string;
   alternative?: string;
@@ -37,6 +38,7 @@ type RecommendedPackage = {
   price: number;
   serves: number;
   perPerson: number;
+  priceTier: "Value" | "Balanced" | "Premium";
   badge: string | null;
   image: string;
   bgColor: string;
@@ -281,13 +283,19 @@ const buildRecommendedPackages = (
       (product.price > 0 ? 2 : 0);
   };
   const candidates = Object.fromEntries(
-    Object.keys(categoryPatterns).map((category) => [
-      category,
-      products
+    Object.keys(categoryPatterns).map((category) => {
+      const pricedProducts = products
         .filter((product) => categoryFor(product) === category && product.price > 0)
-        .sort((a, b) => scoreProduct(b, category) - scoreProduct(a, category) || a.price - b.price)
-        .slice(0, 4),
-    ])
+        .sort((a, b) => a.price - b.price);
+      const lastIndex = pricedProducts.length - 1;
+      const priceRangeIndexes = [0, Math.floor(lastIndex / 3), Math.floor((lastIndex * 2) / 3), lastIndex];
+      const selectedProducts = [...new Set(priceRangeIndexes.map((index) => pricedProducts[index]).filter(Boolean))];
+
+      return [
+        category,
+        selectedProducts.sort((a, b) => scoreProduct(b, category) - scoreProduct(a, category) || a.price - b.price),
+      ];
+    })
   ) as Record<string, ProductItem[]>;
 
   const availableCategories = preferredCategories.filter((category) => candidates[category].length > 0);
@@ -378,6 +386,7 @@ const buildRecommendedPackages = (
         const fullyServesEvent = serves >= totalPeople;
         const productsInPackage: RecommendedProduct[] = meatDetails.map(({ product, quantity, why, alternative }) => ({
           name: product.name,
+          image: product.image,
           quantity,
           why,
           alternative,
@@ -389,6 +398,7 @@ const buildRecommendedPackages = (
           if (price + sauce.price * sauceQuantity <= budget) {
             productsInPackage.push({
               name: sauce.name,
+              image: sauce.image,
               quantity: sauceQuantity,
               why: "A complementary Eskort sauce gives guests an easy serving option at the table.",
             });
@@ -452,7 +462,7 @@ const buildRecommendedPackages = (
             wedding: "Celebration Braai",
             corporate: "Team Braai",
           }[event?.selectedOccasion ?? "family-braai"] ?? "Classic Braai");
-  return recommendations
+  const selectedRecommendations = recommendations
     .sort((a, b) => b.score - a.score || a.price - b.price)
     .filter((recommendation) => {
       const leadProduct = normalizeName(recommendation.products[0]?.name ?? "");
@@ -460,8 +470,12 @@ const buildRecommendedPackages = (
       usedLeadProducts.add(leadProduct);
       return true;
     })
-    .slice(0, 10)
-    .map(({ score: _score, ...recommendation }, index) => {
+    .slice(0, 10);
+  const sortedPrices = selectedRecommendations.map((recommendation) => recommendation.price).sort((a, b) => a - b);
+  const lowPriceCutoff = sortedPrices[Math.floor((sortedPrices.length - 1) / 3)] ?? 0;
+  const highPriceCutoff = sortedPrices[Math.ceil(((sortedPrices.length - 1) * 2) / 3)] ?? 0;
+
+  return selectedRecommendations.map(({ score: _score, ...recommendation }, index) => {
       const leadProduct = recommendation.products[0]?.name ?? "Braai Selection";
       const leadLabel = leadProduct
         .replace(/\s*[|,].*$/, "")
@@ -490,6 +504,13 @@ const buildRecommendedPackages = (
         ...recommendation,
         name: index === 0 ? `Top Pick - ${packageName}` : packageName,
         badge: index === 0 ? "Top match" : index < 3 ? "Great fit" : "Within budget",
+        priceTier: lowPriceCutoff === highPriceCutoff
+          ? "Balanced"
+          : recommendation.price <= lowPriceCutoff
+            ? "Value"
+            : recommendation.price >= highPriceCutoff
+              ? "Premium"
+              : "Balanced",
       };
     });
 };
@@ -687,7 +708,12 @@ export default function RecommendedPackagesPage() {
                 <p className="whitespace-normal text-gray-500 text-[10px] mt-1 leading-snug break-words">{pkg.tagline}</p>
 
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className="text-[#d52027] font-bold text-base">R{pkg.price}</div>
+                  <div className={`font-bold text-base ${pkg.priceTier === "Premium" ? "text-[#1a1a1a]" : pkg.priceTier === "Value" ? "text-green-700" : "text-[#d52027]"}`}>
+                    R{pkg.price.toFixed(2)}
+                    <span className={`ml-1.5 align-middle rounded px-1.5 py-0.5 text-[9px] uppercase ${pkg.priceTier === "Premium" ? "bg-[#1a1a1a] text-white" : pkg.priceTier === "Value" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                      {pkg.priceTier}
+                    </span>
+                  </div>
                   <span className="text-right text-gray-500 text-[10px]">
                     serves {pkg.serves}
                   </span>
@@ -754,13 +780,16 @@ export default function RecommendedPackagesPage() {
                   <h3 className="text-sm font-bold uppercase tracking-wide text-[#1a1a1a]">What’s in the package</h3>
                   <div className="mt-3 space-y-3">
                     {detailsPackage.products.map((product) => (
-                      <div key={`${detailsPackage.id}-${product.name}`} className="min-w-0 border-b border-gray-100 pb-3 last:border-0">
-                        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-sm">
-                          <span className="min-w-0 flex-1 whitespace-normal break-words font-semibold text-gray-800">{product.name}</span>
-                          <span className="shrink-0 font-bold text-[#d52027]">x{product.quantity}</span>
+                      <div key={`${detailsPackage.id}-${product.name}`} className="flex min-w-0 items-start gap-3 border-b border-gray-100 pb-3 last:border-0">
+                        <img src={product.image} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-sm">
+                            <span className="min-w-0 flex-1 whitespace-normal break-words font-semibold text-gray-800">{product.name}</span>
+                            <span className="shrink-0 font-bold text-[#d52027]">x{product.quantity}</span>
+                          </div>
+                          <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-gray-600">{product.why}</p>
+                          {product.alternative && <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-green-700">{product.alternative}</p>}
                         </div>
-                        <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-gray-600">{product.why}</p>
-                        {product.alternative && <p className="mt-1 whitespace-normal break-words text-xs leading-relaxed text-green-700">{product.alternative}</p>}
                       </div>
                     ))}
                   </div>
@@ -795,7 +824,7 @@ export default function RecommendedPackagesPage() {
           </Link>
           <button className="btn-dark py-3 flex items-center justify-center gap-2">
             <Trophy size={16} className="text-eskort-yellow" />
-            My Rewards
+            My Rewards (coming soon)
           </button>
         </div>
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, ShoppingCart, User, MapPin, ChevronDown, Menu, X, LogOut } from "lucide-react";
+import { ShoppingCart, User, ChevronDown, Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function Navbar() {
@@ -11,8 +11,27 @@ export default function Navbar() {
   const { user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useState(0);
 
-  const navLinks = ["Recipes", "Quality", "About", "Specials", "What's New"];
+  useEffect(() => {
+    const updateCartCount = () => {
+      try {
+        const savedCart = localStorage.getItem("eskort-checkout-cart");
+        const products = savedCart ? JSON.parse(savedCart).products ?? [] : [];
+        setCartItemCount(products.reduce((total: number, item: { quantity?: number }) => total + (item.quantity ?? 0), 0));
+      } catch {
+        setCartItemCount(0);
+      }
+    };
+
+    updateCartCount();
+    window.addEventListener("storage", updateCartCount);
+    window.addEventListener("eskort-cart-updated", updateCartCount);
+    return () => {
+      window.removeEventListener("storage", updateCartCount);
+      window.removeEventListener("eskort-cart-updated", updateCartCount);
+    };
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -30,28 +49,11 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <button className="hidden md:flex items-center gap-1.5 text-gray-300 hover:text-white text-sm transition-colors ml-4">
-            <MapPin size={14} className="text-eskort-yellow" />
-            <span className="font-medium">Store Name</span>
-            <ChevronDown size={14} />
-          </button>
-
-          <div className="hidden md:flex items-center gap-6 ml-auto mr-6">
-            {navLinks.map((link) => (
-              <Link key={link} href="#" className="nav-link text-sm font-medium">
-                {link}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="text-gray-300 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10">
-              <Search size={20} />
-            </button>
+          <div className="flex items-center gap-3 ml-auto">
             <Link href="/checkout" aria-label="Shopping cart and checkout" className="text-gray-300 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10 relative">
               <ShoppingCart size={20} />
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-eskort-yellow text-black text-[10px] font-bold rounded-full flex items-center justify-center">
-                0
+                {cartItemCount}
               </span>
             </Link>
             {user ? (
@@ -105,21 +107,6 @@ export default function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden bg-eskort-black border-t border-gray-800 px-4 py-4 space-y-3 animate-fade-in">
-          <div className="flex items-center gap-1.5 text-gray-400 text-sm mb-3">
-            <MapPin size={14} className="text-eskort-yellow" />
-            <span>Store Name</span>
-            <ChevronDown size={12} />
-          </div>
-          {navLinks.map((link) => (
-            <Link
-              key={link}
-              href="#"
-              className="block text-gray-300 hover:text-white text-sm font-medium py-2 border-b border-gray-800"
-              onClick={() => setMobileOpen(false)}
-            >
-              {link}
-            </Link>
-          ))}
           {user ? (
             <div className="space-y-1 border-t border-gray-800 pt-2">
               <p className="px-2 text-xs text-gray-500">{user.user_metadata?.full_name || user.email}</p>

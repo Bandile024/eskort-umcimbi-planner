@@ -107,9 +107,10 @@ export default function EventDetailsPage() {
               <button
                 key={occ.id}
                 onClick={() => setSelectedOccasion(occ.id)}
+                aria-pressed={selectedOccasion === occ.id}
                 className={`occasion-card relative h-24 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
                   selectedOccasion === occ.id
-                    ? "border-eskort-yellow scale-[1.02] shadow-lg"
+                    ? "border-eskort-yellow scale-[1.02] shadow-lg ring-2 ring-eskort-yellow/50"
                     : "border-transparent"
                 }`}
                 style={{ background: occ.bg }}
@@ -146,6 +147,7 @@ export default function EventDetailsPage() {
               <button
                 key={preset}
                 onClick={() => setGuests(preset)}
+                aria-pressed={guests === preset}
                 className={`qty-preset ${guests === preset ? "qty-preset-active" : ""}`}
               >
                 {preset}
@@ -170,6 +172,7 @@ export default function EventDetailsPage() {
               <button
                 key={preset}
                 onClick={() => setKids(preset)}
+                aria-pressed={kids === preset}
                 className={`qty-preset ${kids === preset ? "qty-preset-active" : ""}`}
               >
                 {preset}
@@ -196,6 +199,7 @@ export default function EventDetailsPage() {
               <button
                 key={preset}
                 onClick={() => setUninvited(preset)}
+                aria-pressed={uninvited === preset}
                 className={`qty-preset ${uninvited === preset ? "qty-preset-active" : ""}`}
               >
                 {preset}
@@ -234,6 +238,7 @@ export default function EventDetailsPage() {
               <button
                 key={amt}
                 onClick={() => setBudget(amt)}
+                aria-pressed={budget === amt}
                 className={`qty-preset ${budget === amt ? "qty-preset-active" : ""}`}
               >
                 R{amt.toLocaleString()}</button>
@@ -251,15 +256,16 @@ export default function EventDetailsPage() {
               <button
                 key={style.id}
                 onClick={() => setSelectedStyle(style.id)}
+                aria-pressed={selectedStyle === style.id}
                 className={`p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   selectedStyle === style.id
-                    ? "border-eskort-red bg-eskort-red/10"
+                    ? "border-eskort-yellow bg-eskort-yellow/15 shadow-md"
                     : "border-gray-700 bg-eskort-dark-card hover:border-gray-500"
                 }`}
               >
                 <p
                   className={`font-bold text-sm ${
-                    selectedStyle === style.id ? "text-eskort-red" : "text-white"
+                    selectedStyle === style.id ? "text-eskort-yellow" : "text-white"
                   }`}
                 >
                   {style.label}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import QuantityControl from "@/components/QuantityControl";
 
-type Tab = "Main Meat" | "Essentials" | "Extras";
+type Tab = "Main Meat" | "Extras";
 
 type RecipeProduct = {
   id: string;
@@ -193,10 +193,6 @@ const estimateProductPrice = (name: string, knownPrices: number[]): number => {
 };
 
 const buildProductItems = async (tab: Tab): Promise<ProductItem[]> => {
-  if (tab === "Essentials") {
-    return [];
-  }
-
   const dataFiles =
     tab === "Extras"
       ? ["/data/eskort-extras-1.csv", "/data/eskort-extras-2.csv"]
@@ -238,6 +234,7 @@ export default function BuildMyBraaiPage() {
   const [promoProducts, setPromoProducts] = useState<RecipeProduct[]>([]);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
   const [promoIndex, setPromoIndex] = useState(0);
+  const [seeMoreCount, setSeeMoreCount] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [cartItems, setCartItems] = useState<Record<string, CartItem>>({});
   const [cartHydrated, setCartHydrated] = useState(false);
@@ -270,6 +267,7 @@ export default function BuildMyBraaiPage() {
     } else {
       localStorage.removeItem("eskort-checkout-cart");
     }
+    window.dispatchEvent(new Event("eskort-cart-updated"));
   }, [cartItems, cartHydrated]);
 
   useEffect(() => {
@@ -358,9 +356,9 @@ export default function BuildMyBraaiPage() {
     setPromoIndex((current) => Math.min(current, Math.max(promoProducts.length - 1, 0)));
   }, [promoProducts.length]);
 
-  const tabs: Tab[] = ["Main Meat", "Essentials", "Extras"];
+  const tabs: Tab[] = ["Main Meat", "Extras"];
 
-  const visibleProducts = productItems.slice(0, 4);
+  const visibleProducts = productItems.slice(0, Math.min(4 * (seeMoreCount + 1), productItems.length));
   const selectedProducts = Object.values(cartItems);
   const itemCount = selectedProducts.reduce((sum, product) => sum + product.quantity, 0);
   const subtotal = selectedProducts.reduce((sum, product) => sum + product.quantity * product.price, 0);
@@ -397,19 +395,15 @@ export default function BuildMyBraaiPage() {
 
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="font-display text-5xl md:text-6xl leading-none tracking-wide">
+            <h1 className="font-display whitespace-nowrap text-4xl sm:text-5xl md:text-6xl leading-none tracking-wide">
               <span className="text-blue-700">BUILD MY</span>
-              <br />
-              <span className="text-eskort-yellow">OWN BRAAI</span>
+              <span className="text-eskort-yellow"> OWN BRAAI</span>
             </h1>
             <p className="text-gray-500 text-sm mt-2">Pick your meats &amp; proteins</p>
           </div>
-          <div className="bg-eskort-red text-white font-bold text-sm px-4 py-2 rounded-lg uppercase tracking-wide">
-            PROMOS (ON SALE)
-          </div>
         </div>
 
-        <div
+        {false && <div
           className="relative mb-8"
           onMouseEnter={() => setIsAutoPlaying(false)}
           onMouseLeave={() => setIsAutoPlaying(true)}
@@ -478,13 +472,16 @@ export default function BuildMyBraaiPage() {
               />
             ))}
           </div>
-        </div>
+        </div>}
 
         <div className="flex border-b border-gray-300 mb-6 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setSeeMoreCount(0);
+              }}
               className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors relative ${
                 activeTab === tab
                   ? "text-eskort-black border-b-2 border-eskort-black"
@@ -498,10 +495,10 @@ export default function BuildMyBraaiPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 mb-8">
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {productItems.length === 0 ? (
                   <div className="md:col-span-2 rounded-xl border border-dashed border-gray-300 bg-white/40 p-8 text-center text-gray-500">
-                    {activeTab === "Essentials" ? "Essentials products coming soon..." : "Loading products..."}
+                    Loading products...
                   </div>
                 ) : (
                   visibleProducts.map((product) => {
@@ -539,16 +536,18 @@ export default function BuildMyBraaiPage() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => router.push(`/build-my-braai/products?tab=${encodeURIComponent(activeTab)}`)}
-                className="mt-5 w-full bg-eskort-red text-white font-bold text-sm uppercase tracking-wide rounded-xl py-3 hover:opacity-90 transition-opacity"
-              >
-                SEE MORE
-              </button>
+              {visibleProducts.length < productItems.length && (
+                <button
+                  type="button"
+                  onClick={() => setSeeMoreCount((count) => count < 2 ? count + 1 : Math.ceil(productItems.length / 4) - 1)}
+                  className="mt-5 w-full bg-eskort-red text-white font-bold text-sm uppercase tracking-wide rounded-xl py-3 hover:opacity-90 transition-opacity"
+                >
+                  {seeMoreCount < 2 ? "SEE MORE" : "SEE ALL"}
+                </button>
+              )}
             </div>
 
-            <aside className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm h-fit sticky top-4">
+            <aside className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm h-fit sticky top-20 self-start">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-2xl font-bold text-eskort-black">Your Order</h3>
                 <div className="flex items-center gap-3">
@@ -633,12 +632,6 @@ export default function BuildMyBraaiPage() {
                 </div>
 
                 <button
-                  onClick={() => router.push("/basket-summary")}
-                  className="w-full btn-primary mt-4 py-2.5"
-                >
-                  Add Essentials →
-                </button>
-                <button
                   onClick={() => {
                     if (selectedProducts.length === 0) return;
                     const cartPayload = {
@@ -661,7 +654,7 @@ export default function BuildMyBraaiPage() {
                       : "btn-primary"
                   }`}
                 >
-                  Skip to Checkout →
+                  Checkout →
                 </button>
               </div>
             </aside>

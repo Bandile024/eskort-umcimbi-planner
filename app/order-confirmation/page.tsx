@@ -180,17 +180,6 @@ function OrderConfirmationContent() {
             </div>
           </div>
 
-          {/* Reward unlocked banner */}
-          <div className="bg-eskort-dark-card rounded-2xl p-4 mb-6 border border-eskort-yellow/30 flex items-start gap-3">
-            <span className="text-2xl flex-shrink-0">🎁</span>
-            <div>
-              <p className="text-white font-bold text-sm">Your reward is unlocked!</p>
-              <p className="text-gray-400 text-xs mt-0.5">
-                Track your order for 30 days and R20 off your next Eskort braai.
-              </p>
-            </div>
-          </div>
-
           {/* CTAs */}
           <div className="space-y-3">
             <Link
