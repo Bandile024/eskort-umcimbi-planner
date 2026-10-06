@@ -383,8 +383,9 @@ export default function BuildMyBraaiPage() {
     setPromoIndex((current) => (promoProducts.length === 0 ? 0 : (current + 1) % promoProducts.length));
 
   return (
-    <div className="min-h-screen bg-eskort-cream-light xl:h-[calc(100vh-4rem)] xl:min-h-0 xl:overflow-hidden">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 xl:h-full xl:min-h-0 xl:w-full">
+    <div className="min-h-screen bg-eskort-cream-light lg:h-[calc(100vh-4rem)] lg:min-h-0 lg:overflow-hidden">
+      <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-6 px-4 py-6 lg:h-full lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="flex min-w-0 flex-col lg:min-h-0">
         <Link
           href="/recommended-packages"
           className="inline-flex items-center gap-1 text-eskort-red text-sm font-semibold mb-4 hover:opacity-80"
@@ -395,7 +396,7 @@ export default function BuildMyBraaiPage() {
 
         <div className="mb-6 flex shrink-0 items-start justify-between">
           <div>
-            <h1 className="font-display whitespace-nowrap text-4xl sm:text-5xl md:text-6xl leading-none tracking-wide">
+            <h1 className="font-display whitespace-nowrap text-4xl md:text-6xl leading-none tracking-wide">
               <span className="text-blue-700">BUILD MY</span>
               <span className="text-eskort-yellow"> OWN BRAAI</span>
             </h1>
@@ -493,12 +494,10 @@ export default function BuildMyBraaiPage() {
           ))}
         </div>
 
-        <div className="mb-8 grid grid-cols-1 gap-6 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
-              <div className="xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-2">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
                 {productItems.length === 0 ? (
-                  <div className="md:col-span-2 rounded-xl border border-dashed border-gray-300 bg-white/40 p-8 text-center text-gray-500">
+                  <div className="lg:col-span-4 rounded-xl border border-dashed border-gray-300 bg-white/40 p-8 text-center text-gray-500">
                     Loading products...
                   </div>
                 ) : (
@@ -510,7 +509,7 @@ export default function BuildMyBraaiPage() {
                         key={product.id}
                         className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm"
                       >
-                        <div className="h-36 overflow-hidden bg-gray-100">
+                        <div className="h-36 overflow-hidden bg-gray-100 lg:h-24">
                           <img
                             src={product.image}
                             alt={product.name}
@@ -546,10 +545,10 @@ export default function BuildMyBraaiPage() {
                   {seeMoreCount < 2 ? "SEE MORE" : "SEE ALL"}
                 </button>
               )}
-              </div>
-            </div>
+        </div>
+        </div>
 
-            <aside className="flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm xl:h-full">
+            <aside className="mt-20 flex min-h-0 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:h-[calc(100%-5rem)]">
               <div className="mb-4 flex shrink-0 items-center justify-between">
                 <h3 className="text-2xl font-bold text-eskort-black">Your Order</h3>
                 <div className="flex items-center gap-3">
@@ -659,7 +658,6 @@ export default function BuildMyBraaiPage() {
                 </button>
               </div>
             </aside>
-        </div>
       </div>
     </div>
   );

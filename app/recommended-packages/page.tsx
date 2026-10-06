@@ -563,6 +563,10 @@ export default function RecommendedPackagesPage() {
   const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     const saved = localStorage.getItem("eskort-braai-event");
     if (saved) {
       try {
