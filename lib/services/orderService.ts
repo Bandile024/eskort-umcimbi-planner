@@ -254,13 +254,13 @@ export class OrderService {
       .select('order_status, total_amount, payment_status')
 
     if (!orders) {
-      return { total_orders: 0, pending_orders: 0, preparing_orders: 0, delivered_orders: 0, revenue_total: 0 }
+      return { total_orders: 0, pending_orders: 0, processing_orders: 0, delivered_orders: 0, revenue_total: 0 }
     }
 
     const stats: DashboardStats = {
       total_orders: orders.length,
       pending_orders: orders.filter(o => o.order_status === 'pending').length,
-      preparing_orders: orders.filter(o => o.order_status === 'preparing').length,
+      processing_orders: orders.filter(o => o.order_status === 'processing').length,
       delivered_orders: orders.filter(o => o.order_status === 'delivered').length,
       revenue_total: orders
         .filter(o => o.payment_status === 'paid')

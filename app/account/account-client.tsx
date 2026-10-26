@@ -66,11 +66,11 @@ export default function AccountClient({ user, profile }: AccountClientProps) {
     switch (status) {
       case "delivered":
         return "bg-green-900/30 text-green-400 border-green-700"
-      case "preparing":
+      case "processing":
         return "bg-yellow-900/30 text-yellow-400 border-yellow-700"
       case "confirmed":
         return "bg-blue-900/30 text-blue-400 border-blue-700"
-      case "shipped":
+      case "out_for_delivery":
         return "bg-purple-900/30 text-purple-400 border-purple-700"
       case "cancelled":
         return "bg-red-900/30 text-red-400 border-red-700"

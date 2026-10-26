@@ -40,8 +40,8 @@ export default function OrderDetailClient({ order }: { order: Order }) {
     const statusMap: Record<string, { label: string; className: string }> = {
       pending: { label: "Pending", className: "bg-yellow-900/30 text-yellow-400" },
       confirmed: { label: "Confirmed", className: "bg-green-900/30 text-green-400" },
-      preparing: { label: "Preparing", className: "bg-blue-900/30 text-blue-400" },
-      shipped: { label: "Shipped", className: "bg-purple-900/30 text-purple-400" },
+      processing: { label: "Processing", className: "bg-blue-900/30 text-blue-400" },
+      out_for_delivery: { label: "Out for Delivery", className: "bg-purple-900/30 text-purple-400" },
       delivered: { label: "Delivered", className: "bg-emerald-900/30 text-emerald-400" },
       cancelled: { label: "Cancelled", className: "bg-red-900/30 text-red-400" },
     }

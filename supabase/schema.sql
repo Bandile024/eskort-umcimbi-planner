@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS orders (
   delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 60 CHECK (delivery_fee >= 0),
   total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
   payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
-  order_status TEXT NOT NULL DEFAULT 'pending' CHECK (order_status IN ('pending', 'confirmed', 'preparing', 'shipped', 'delivered', 'cancelled')),
+  order_status TEXT NOT NULL DEFAULT 'pending' CHECK (order_status IN ('pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered', 'cancelled')),
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

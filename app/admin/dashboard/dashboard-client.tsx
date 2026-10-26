@@ -15,8 +15,8 @@ const orderStatusOptions: { value: string; label: string }[] = [
   { value: "all", label: "All Statuses" },
   { value: "pending", label: "Pending" },
   { value: "confirmed", label: "Confirmed" },
-  { value: "preparing", label: "Preparing" },
-  { value: "shipped", label: "Shipped" },
+  { value: "processing", label: "Processing" },
+  { value: "out_for_delivery", label: "Out for Delivery" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ]
@@ -34,7 +34,7 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
   const [stats, setStats] = useState<DashboardStats>({
     total_orders: 0,
     pending_orders: 0,
-    preparing_orders: 0,
+    processing_orders: 0,
     delivered_orders: 0,
     revenue_total: 0,
   })
@@ -138,11 +138,11 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
     switch (status) {
       case "delivered":
         return "bg-green-900/30 text-green-400 border-green-700"
-      case "preparing":
+      case "processing":
         return "bg-yellow-900/30 text-yellow-400 border-yellow-700"
       case "confirmed":
         return "bg-blue-900/30 text-blue-400 border-blue-700"
-      case "shipped":
+      case "out_for_delivery":
         return "bg-purple-900/30 text-purple-400 border-purple-700"
       case "cancelled":
         return "bg-red-900/30 text-red-400 border-red-700"
@@ -210,8 +210,8 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
               <p className="font-display text-3xl text-yellow-400">{stats.pending_orders}</p>
             </div>
             <div className="bg-eskort-dark-card border border-gray-700 rounded-xl p-5 text-center">
-              <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Preparing</p>
-              <p className="font-display text-3xl text-blue-400">{stats.preparing_orders}</p>
+              <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Processing</p>
+              <p className="font-display text-3xl text-blue-400">{stats.processing_orders}</p>
             </div>
             <div className="bg-eskort-dark-card border border-gray-700 rounded-xl p-5 text-center">
               <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">Delivered</p>
