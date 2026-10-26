@@ -122,6 +122,17 @@ CREATE POLICY "Admins can view all orders" ON orders
     )
   );
 
+CREATE POLICY "Admins can update all orders" ON orders
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  ) WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles p WHERE p.id = auth.uid() AND p.role = 'admin'
+    )
+  );
+
 CREATE POLICY "Service role can insert orders" ON orders
   FOR INSERT WITH CHECK (current_setting('request.auth.role', true) = 'service_role');
 

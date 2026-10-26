@@ -10,8 +10,8 @@ const orderStatusOptions: { value: string; label: string }[] = [
   { value: "all", label: "All Statuses" },
   { value: "pending", label: "Pending" },
   { value: "confirmed", label: "Confirmed" },
-  { value: "processing", label: "Processing" },
-  { value: "out_for_delivery", label: "Out for Delivery" },
+  { value: "preparing", label: "Preparing" },
+  { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ]
@@ -104,11 +104,11 @@ export default function AdminOrdersClient() {
     switch (status) {
       case "delivered":
         return "bg-green-900/30 text-green-400 border-green-700"
-      case "processing":
+      case "preparing":
         return "bg-yellow-900/30 text-yellow-400 border-yellow-700"
       case "confirmed":
         return "bg-blue-900/30 text-blue-400 border-blue-700"
-      case "out_for_delivery":
+      case "shipped":
         return "bg-purple-900/30 text-purple-400 border-purple-700"
       case "cancelled":
         return "bg-red-900/30 text-red-400 border-red-700"

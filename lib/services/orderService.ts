@@ -202,16 +202,26 @@ export class OrderService {
 
   static async updateOrderStatus(data: { order_id: string; new_status: OrderStatus; notes?: string }, serverClient?: ServerClient): Promise<boolean> {
     const client = serverClient ?? await getDefaultClient()
-    const { error } = await client
+    const updates: { order_status: OrderStatus; notes?: string } = {
+      order_status: data.new_status,
+    }
+    if (data.notes !== undefined) {
+      updates.notes = data.notes
+    }
+
+    const { data: updatedOrder, error } = await client
       .from('orders')
-      .update({
-        order_status: data.new_status,
-        notes: data.notes ?? null,
-      })
+      .update(updates)
       .eq('id', data.order_id)
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       console.error('Update order status error:', error)
+      return false
+    }
+    if (!updatedOrder) {
+      console.error('Update order status error: order not found or update denied by row-level security')
       return false
     }
     return true
@@ -219,13 +229,19 @@ export class OrderService {
 
   static async updatePaymentStatus(data: { order_id: string; payment_status: PaymentStatus }, serverClient?: ServerClient): Promise<boolean> {
     const client = serverClient ?? await getDefaultClient()
-    const { error } = await client
+    const { data: updatedOrder, error } = await client
       .from('orders')
       .update({ payment_status: data.payment_status })
       .eq('id', data.order_id)
+      .select('id')
+      .maybeSingle()
 
     if (error) {
       console.error('Update payment status error:', error)
+      return false
+    }
+    if (!updatedOrder) {
+      console.error('Update payment status error: order not found or update denied by row-level security')
       return false
     }
     return true
@@ -238,13 +254,13 @@ export class OrderService {
       .select('order_status, total_amount, payment_status')
 
     if (!orders) {
-      return { total_orders: 0, pending_orders: 0, processing_orders: 0, delivered_orders: 0, revenue_total: 0 }
+      return { total_orders: 0, pending_orders: 0, preparing_orders: 0, delivered_orders: 0, revenue_total: 0 }
     }
 
     const stats: DashboardStats = {
       total_orders: orders.length,
       pending_orders: orders.filter(o => o.order_status === 'pending').length,
-      processing_orders: orders.filter(o => o.order_status === 'processing').length,
+      preparing_orders: orders.filter(o => o.order_status === 'preparing').length,
       delivered_orders: orders.filter(o => o.order_status === 'delivered').length,
       revenue_total: orders
         .filter(o => o.payment_status === 'paid')

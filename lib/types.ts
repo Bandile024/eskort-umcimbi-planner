@@ -1,6 +1,6 @@
 export type UserRole = 'customer' | 'admin'
 
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled'
+export type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'shipped' | 'delivered' | 'cancelled'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 
 export interface Profile {
@@ -97,7 +97,7 @@ export interface PaginatedOrders {
 export interface DashboardStats {
   total_orders: number
   pending_orders: number
-  processing_orders: number
+  preparing_orders: number
   delivered_orders: number
   revenue_total: number
 }

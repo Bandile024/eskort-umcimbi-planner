@@ -12,8 +12,8 @@ interface AdminOrderDetailClientProps {
 const orderStatusOptions = [
   { value: "pending", label: "Pending" },
   { value: "confirmed", label: "Confirmed" },
-  { value: "processing", label: "Processing" },
-  { value: "out_for_delivery", label: "Out for Delivery" },
+  { value: "preparing", label: "Preparing" },
+  { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
 ]
