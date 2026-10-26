@@ -197,12 +197,11 @@ export function verifyPayFastSignature(
   if (!signature) {
     return false
   }
-
-  const expected = signPayFastFields(fields, passphrase)
-  if (expected.length !== signature.length) {
+  if (!/^[a-f\d]{32}$/i.test(signature)) {
     return false
   }
 
+  const expected = signPayFastFields(fields, passphrase)
   const expectedBuffer = Buffer.from(expected.toLowerCase(), "hex")
   const signatureBuffer = Buffer.from(signature.toLowerCase(), "hex")
   return timingSafeEqual(expectedBuffer, signatureBuffer)
@@ -213,16 +212,10 @@ export function verifyPayFastSignature(
  * The body must be the raw parameter string, with the Host header specified.
  */
 export async function validatePayFastNotification(
-  fields: Record<string, unknown>,
-  passphrase?: string
+  rawBody: string
 ): Promise<boolean> {
-  const host = process.env.PAYFAST_MODE === "live" ? "www.payfast.co.za" : "sandbox.payfast.co.za"
-  
-  // Format received fields as application/x-www-form-urlencoded
-  const pairs = Object.entries(fields)
-    .filter(([key, val]) => val !== undefined && val !== null && String(val).trim() !== "")
-    .map(([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(val))}`)
-  const bodyString = pairs.join("&")
+  const config = getPayFastConfig()
+  const host = config.mode === "live" ? "www.payfast.co.za" : "sandbox.payfast.co.za"
 
   const response = await fetch(`https://${host}/eng/query/validate`, {
     method: "POST",
@@ -230,7 +223,7 @@ export async function validatePayFastNotification(
       "Content-Type": "application/x-www-form-urlencoded",
       "Host": host,
     },
-    body: bodyString,
+    body: rawBody,
   })
 
   return response.ok && (await response.text()).trim() === "VALID"

@@ -90,6 +90,24 @@ CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 
+-- ============================================
+-- PAYMENT TRANSACTIONS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS payment_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL CHECK (provider = 'payfast'),
+  payfast_m_payment_id TEXT NOT NULL UNIQUE,
+  payfast_pf_payment_id TEXT,
+  payfast_payment_status TEXT,
+  amount_cents BIGINT NOT NULL CHECK (amount_cents >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON payment_transactions(order_id);
+ALTER TABLE payment_transactions ENABLE ROW LEVEL SECURITY;
+
 -- Enable RLS
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 

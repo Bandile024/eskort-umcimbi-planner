@@ -99,6 +99,7 @@ Create a `.env.local` file with the following variables:
 # Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 
 # PayFast Configuration
 PAYFAST_MODE=sandbox
@@ -108,7 +109,7 @@ PAYFAST_PASSPHRASE=your-passphrase
 PAYFAST_SKIP_IP_CHECK=true
 
 # Site URL
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=https://your-public-tunnel-url
 ```
 
 ### Database Setup
@@ -117,14 +118,16 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 2. Navigate to SQL Editor
 3. Copy and paste the contents of `supabase/schema.sql`
 4. Execute the SQL to create all tables and policies
+5. For an existing database, run `supabase/payfast-itn.sql` in the SQL Editor
 
 ### PayFast Setup
 
 1. Sign up for a PayFast merchant account at payfast.co.za
 2. For sandbox testing: use sandbox.payfast.co.za
 3. Create a new integration in the developer dashboard
-4. Add your Merchant ID, Merchant Key, and Passphrase to `.env.local`
-4. Configure ITN URL: `https://your-domain.com/api/payfast/itn`
+4. Add your sandbox Merchant ID, Merchant Key, and matching Passphrase to `.env.local`
+5. `PAYFAST_SKIP_IP_CHECK=true` is only honored outside production; use it for sandbox requests during local development. PayFast must be able to reach the public ITN URL.
+6. Configure the ITN URL as `https://your-public-domain/api/payfast/itn`. For local development, expose your app with an HTTPS tunnel and set `NEXT_PUBLIC_SITE_URL` to that tunnel URL.
 
 ## Available Scripts
 
@@ -139,6 +142,7 @@ npm run typecheck # Run TypeScript type checking
 ## Database Schema
 
 The schema includes:
+- **payment_transactions** - PayFast payment IDs, statuses, and expected amounts for ITN verification
 - **profiles** - User profiles with roles (customer, admin)
 - **orders** - Customer orders with status tracking
 - **order_items** - Individual items within orders
@@ -153,8 +157,9 @@ The checkout flow:
 3. Server generates PayFast signature & redirects to PayFast
 4. Customer pays on PayFast sandbox/live
 5. PayFast posts ITN to `/api/payfast/itn`
-6. Server validates signature → updates order status
-7. Customer redirected back to `/account/orders/[id]`
+6. Server checks PayFast's source IP and signature, validates the original notification with PayFast, and matches merchant ID and amount to the saved transaction
+7. A verified successful payment updates `payment_transactions` and sets the order payment status to `paid` and its pending order status to `confirmed`
+8. Customer redirected back to `/account/orders/[id]`
 
 ## Admin Access
 
