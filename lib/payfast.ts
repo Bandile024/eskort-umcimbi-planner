@@ -156,8 +156,11 @@ export function formatAmount(cents: number): string {
  * PayFast PHP urlencode() standard:
  * RFC 1738 encoding where spaces are encoded as '+' and standard safe chars remain unencoded.
  */
-function encodePayFastValue(value: unknown): string {
-  return encodeURIComponent(String(value).trim()).replace(/%20/g, "+")
+function encodePayFastValue(value: unknown, trim = true): string {
+  const normalized = String(value)
+  return encodeURIComponent(trim ? normalized.trim() : normalized)
+    .replace(/[!'()*~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
+    .replace(/%20/g, "+")
 }
 
 /**
@@ -166,7 +169,9 @@ function encodePayFastValue(value: unknown): string {
 function buildSignatureString(
   fields: Record<string, unknown>,
   passphrase: string | undefined,
-  sortFields: boolean
+  sortFields: boolean,
+  includeBlankFields = false,
+  trimValues = true
 ): string {
   // 1. Filter out signature and any undefined, null, or whitespace-only keys
   const keys = Object.keys(fields).filter(
@@ -174,7 +179,7 @@ function buildSignatureString(
       key !== "signature" &&
       fields[key] !== undefined &&
       fields[key] !== null &&
-      String(fields[key]).trim() !== ""
+      (includeBlankFields || String(fields[key]).trim() !== "")
   )
 
   // Checkout signatures use PayFast's documented field order. ITN signatures
@@ -191,7 +196,7 @@ function buildSignatureString(
   }
 
   // 3. Construct name=value pairs
-  const pairs = keys.map((key) => `${key}=${encodePayFastValue(fields[key])}`)
+  const pairs = keys.map((key) => `${key}=${encodePayFastValue(fields[key], trimValues)}`)
   let queryString = pairs.join("&")
 
   // 4. Append passphrase if configured
@@ -239,7 +244,7 @@ export function verifyPayFastITNSignature(
   }
 
   const expectedInReceivedOrder = createHash("md5")
-    .update(buildSignatureString(fields, passphrase, false))
+    .update(buildSignatureString(fields, passphrase, false, true, false))
     .digest("hex")
   const signatureBuffer = Buffer.from(signature.toLowerCase(), "hex")
   const receivedOrderBuffer = Buffer.from(expectedInReceivedOrder, "hex")
@@ -250,7 +255,7 @@ export function verifyPayFastITNSignature(
   // Retain compatibility with notifications whose fields are serialized in
   // the checkout's canonical order rather than their original POST order.
   const expectedCanonicalOrder = createHash("md5")
-    .update(buildSignatureString(fields, passphrase, true))
+    .update(buildSignatureString(fields, passphrase, true, true, false))
     .digest("hex")
   const canonicalOrderBuffer = Buffer.from(expectedCanonicalOrder, "hex")
   return timingSafeEqual(canonicalOrderBuffer, signatureBuffer)
