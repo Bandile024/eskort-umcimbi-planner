@@ -227,12 +227,22 @@ export function verifyPayFastITNSignature(
     return false
   }
 
-  const expected = createHash("md5")
+  const expectedInReceivedOrder = createHash("md5")
     .update(buildSignatureString(fields, passphrase, false))
     .digest("hex")
-  const expectedBuffer = Buffer.from(expected, "hex")
   const signatureBuffer = Buffer.from(signature.toLowerCase(), "hex")
-  return timingSafeEqual(expectedBuffer, signatureBuffer)
+  const receivedOrderBuffer = Buffer.from(expectedInReceivedOrder, "hex")
+  if (timingSafeEqual(receivedOrderBuffer, signatureBuffer)) {
+    return true
+  }
+
+  // Retain compatibility with notifications whose fields are serialized in
+  // the checkout's canonical order rather than their original POST order.
+  const expectedCanonicalOrder = createHash("md5")
+    .update(buildSignatureString(fields, passphrase, true))
+    .digest("hex")
+  const canonicalOrderBuffer = Buffer.from(expectedCanonicalOrder, "hex")
+  return timingSafeEqual(canonicalOrderBuffer, signatureBuffer)
 }
 
 /**
