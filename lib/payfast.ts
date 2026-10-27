@@ -88,6 +88,7 @@ export function getPayFastConfig(): PayFastConfig {
 }
 
 export function getPublicOrigin(request?: Request): string {
+  const isProduction = process.env.NODE_ENV === "production"
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
   if (configured) {
     const configuredUrl = new URL(configured)
@@ -101,8 +102,15 @@ export function getPublicOrigin(request?: Request): string {
       throw new Error("NEXT_PUBLIC_SITE_URL must use HTTP or HTTPS")
     }
 
-    if (process.env.NODE_ENV !== "production" || !isLocalhost) {
+    if (!isProduction || (!isLocalhost && configuredUrl.protocol === "https:")) {
       return configuredUrl.origin
+    }
+  }
+
+  if (isProduction) {
+    const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+    if (vercelHost && !vercelHost.includes("localhost")) {
+      return `https://${vercelHost}`
     }
   }
 
@@ -113,6 +121,9 @@ export function getPublicOrigin(request?: Request): string {
       "localhost"
     const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0].trim()
     const protocol = forwardedProtocol || (host.includes("localhost") ? "http" : "https")
+    if (isProduction && (protocol !== "https" || host.includes("localhost"))) {
+      throw new Error("A public HTTPS NEXT_PUBLIC_SITE_URL is required for PayFast callbacks in production")
+    }
     return `${protocol}://${host}`
   }
 
