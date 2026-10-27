@@ -6,7 +6,7 @@ import {
   mapPayFastStatus,
   toCents,
   validatePayFastNotification,
-  verifyPayFastSignature,
+  verifyPayFastITNSignature,
 } from "@/lib/payfast"
 
 export async function POST(request: Request) {
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     }
 
     const config = getPayFastConfig()
-    if (!verifyPayFastSignature(fields, fields.signature, config.passphrase)) {
+    if (!verifyPayFastITNSignature(fields, fields.signature, config.passphrase)) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 403 })
     }
 

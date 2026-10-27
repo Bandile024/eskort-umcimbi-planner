@@ -152,7 +152,11 @@ function encodePayFastValue(value: unknown): string {
 /**
  * Builds the canonical, sorted query string for PayFast MD5 hashing.
  */
-export function signatureString(fields: Record<string, unknown>, passphrase?: string): string {
+function buildSignatureString(
+  fields: Record<string, unknown>,
+  passphrase: string | undefined,
+  sortFields: boolean
+): string {
   // 1. Filter out signature and any undefined, null, or whitespace-only keys
   const keys = Object.keys(fields).filter(
     (key) =>
@@ -162,15 +166,18 @@ export function signatureString(fields: Record<string, unknown>, passphrase?: st
       String(fields[key]).trim() !== ""
   )
 
-  // 2. Sort according to PayFast canonical specifications
-  keys.sort((a, b) => {
-    const idxA = PAYFAST_CANONICAL_ORDER.indexOf(a)
-    const idxB = PAYFAST_CANONICAL_ORDER.indexOf(b)
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB
-    if (idxA !== -1) return -1
-    if (idxB !== -1) return 1
-    return a.localeCompare(b)
-  })
+  // Checkout signatures use PayFast's documented field order. ITN signatures
+  // use the order in which PayFast sent the notification fields.
+  if (sortFields) {
+    keys.sort((a, b) => {
+      const idxA = PAYFAST_CANONICAL_ORDER.indexOf(a)
+      const idxB = PAYFAST_CANONICAL_ORDER.indexOf(b)
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB
+      if (idxA !== -1) return -1
+      if (idxB !== -1) return 1
+      return a.localeCompare(b)
+    })
+  }
 
   // 3. Construct name=value pairs
   const pairs = keys.map((key) => `${key}=${encodePayFastValue(fields[key])}`)
@@ -183,6 +190,10 @@ export function signatureString(fields: Record<string, unknown>, passphrase?: st
   }
 
   return queryString
+}
+
+export function signatureString(fields: Record<string, unknown>, passphrase?: string): string {
+  return buildSignatureString(fields, passphrase, true)
 }
 
 export function signPayFastFields(fields: Record<string, unknown>, passphrase?: string): string {
@@ -203,6 +214,23 @@ export function verifyPayFastSignature(
 
   const expected = signPayFastFields(fields, passphrase)
   const expectedBuffer = Buffer.from(expected.toLowerCase(), "hex")
+  const signatureBuffer = Buffer.from(signature.toLowerCase(), "hex")
+  return timingSafeEqual(expectedBuffer, signatureBuffer)
+}
+
+export function verifyPayFastITNSignature(
+  fields: Record<string, unknown>,
+  signature?: string | null,
+  passphrase?: string
+): boolean {
+  if (!signature || !/^[a-f\d]{32}$/i.test(signature)) {
+    return false
+  }
+
+  const expected = createHash("md5")
+    .update(buildSignatureString(fields, passphrase, false))
+    .digest("hex")
+  const expectedBuffer = Buffer.from(expected, "hex")
   const signatureBuffer = Buffer.from(signature.toLowerCase(), "hex")
   return timingSafeEqual(expectedBuffer, signatureBuffer)
 }
