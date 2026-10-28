@@ -245,7 +245,7 @@ export default function RecipesPage() {
                   </h3>
                   <button
                     type="button"
-                    className="mx-auto flex w-[65%] items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
+                    className="flex w-[65%] self-start items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
                   >
                     {recipe.button}
                     <ChevronRight size={18} strokeWidth={3} aria-hidden="true" />
