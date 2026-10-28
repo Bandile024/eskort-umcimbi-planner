@@ -169,7 +169,7 @@ export default function RecipesPage() {
   return (
     <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
       <section className="px-4 py-10 sm:px-6 md:py-16">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-stretch gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           {featuredRecipe && (
             <div className="min-w-0">
               <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
@@ -245,16 +245,16 @@ export default function RecipesPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 lg:h-full">
             <ChevronLeft
               size={42}
               strokeWidth={3}
               aria-hidden="true"
               className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
             />
-            <div className="relative min-w-0 flex-1 overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
+            <div className="relative aspect-video min-w-0 flex-1 overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card lg:aspect-auto lg:self-stretch">
             <video
-              className="block h-auto w-full"
+              className="absolute inset-0 h-full w-full object-contain"
               controls
               muted
               loop
