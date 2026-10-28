@@ -50,21 +50,12 @@ export default function Navbar() {
           </Link>
 
           <div className="flex items-center gap-3 ml-auto">
-<<<<<<< HEAD
-            <button
-              type="button"
-              className="hidden md:inline-flex items-center whitespace-nowrap rounded-md px-2 py-2 text-xs font-normal text-gray-200 hover:bg-white/10 hover:text-white sm:px-3 sm:text-sm"
-            >
-              Recipes
-            </button>
-=======
             <Link
               href="/recipes"
               className="hidden sm:inline-flex text-sm font-medium text-gray-200 transition-colors hover:text-eskort-yellow"
             >
               Recipes
             </Link>
->>>>>>> status_update
             <Link href="/checkout" aria-label="Shopping cart and checkout" className="text-gray-300 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10 relative">
               <ShoppingCart size={20} />
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-eskort-yellow text-black text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -122,14 +113,6 @@ export default function Navbar() {
 
       {mobileOpen && (
         <div className="md:hidden bg-eskort-black border-t border-gray-800 px-4 py-4 space-y-3 animate-fade-in">
-<<<<<<< HEAD
-          <button
-            type="button"
-            className="block py-2 text-sm text-gray-200"
-          >
-            Recipes
-          </button>
-=======
           <Link
             href="/recipes"
             className="block py-2 text-sm font-medium text-gray-200 hover:text-eskort-yellow"
@@ -137,7 +120,6 @@ export default function Navbar() {
           >
             Recipes
           </Link>
->>>>>>> status_update
           {user ? (
             <div className="space-y-1 border-t border-gray-800 pt-2">
               <p className="px-2 text-xs text-gray-500">{user.user_metadata?.full_name || user.email}</p>
