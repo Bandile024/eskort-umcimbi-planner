@@ -110,7 +110,6 @@ export default function RecipesPage() {
   const [activeFilter, setActiveFilter] = useState<TimeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -255,16 +254,9 @@ export default function RecipesPage() {
               playsInline
               preload="metadata"
               aria-label="Recipes hero video"
-              onCanPlay={() => setVideoReady(true)}
-              onError={() => setVideoReady(false)}
             >
               <source src="/videos/recipes.hero.mp4" type="video/mp4" />
             </video>
-            {!videoReady && (
-              <p className="pointer-events-none absolute text-sm text-gray-300 sm:text-base">
-                No video currently
-              </p>
-            )}
             </div>
             <ChevronRight
               size={42}
