@@ -168,7 +168,7 @@ export default function RecipesPage() {
 
   return (
     <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
-      <section className="px-4 py-10 sm:px-6 md:py-16">
+      <section className="px-4 py-10 sm:px-6 md:py-16 lg:pb-28">
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-stretch gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           {featuredRecipe && (
             <div className="relative min-w-0">
