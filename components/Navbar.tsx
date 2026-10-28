@@ -49,14 +49,13 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <Link
-            href="/build-my-braai"
-            className="hidden md:inline-flex items-center rounded-md bg-eskort-yellow px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-yellow-300"
-          >
-            Recipes
-          </Link>
-
           <div className="flex items-center gap-3 ml-auto">
+            <Link
+              href="/build-my-braai"
+              className="hidden md:inline-flex items-center rounded-md bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+            >
+              Recipes
+            </Link>
             <Link href="/checkout" aria-label="Shopping cart and checkout" className="text-gray-300 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10 relative">
               <ShoppingCart size={20} />
               <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-eskort-yellow text-black text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -116,7 +115,7 @@ export default function Navbar() {
         <div className="md:hidden bg-eskort-black border-t border-gray-800 px-4 py-4 space-y-3 animate-fade-in">
           <Link
             href="/build-my-braai"
-            className="block rounded-md bg-eskort-yellow px-3 py-2 text-sm font-semibold text-black"
+            className="block rounded-md bg-black px-3 py-2 text-sm font-semibold text-white"
             onClick={() => setMobileOpen(false)}
           >
             Recipes
