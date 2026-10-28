@@ -23,6 +23,14 @@ const timeFilters: { id: TimeFilter; label: string }[] = [
   { id: "over-45", label: "Over 45 min" },
 ];
 
+const featuredIngredients = [
+  "200 g Eskort Rindless Streaky Bacon",
+  "500 ml (2 C) bread flour",
+  "375 ml (1 ½ C) craft beer or cider",
+  "45 ml (3 T) pineapple chutney",
+  "250 ml (1 C) mozzarella cheese",
+];
+
 const parseCsv = (text: string): Record<string, string>[] => {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -149,12 +157,90 @@ export default function RecipesPage() {
       }),
     [activeFilter, recipes]
   );
+  const featuredRecipe = recipes[0];
+  const featuredTitleWords = featuredRecipe?.name.split(" ") ?? [];
 
   return (
     <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
-      <section className="px-4 pb-14 pt-8 sm:px-6 md:pb-20 md:pt-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="relative mx-auto flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card md:w-1/2">
+      <section className="px-4 py-10 sm:px-6 md:py-16">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          {featuredRecipe && (
+            <div className="min-w-0">
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="pt-2 text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Recipe:
+                </p>
+                <h1 className="font-display text-4xl leading-[1.05] tracking-wide sm:text-5xl">
+                  <span className="block">
+                    {featuredTitleWords.slice(0, 2).join(" ")}
+                  </span>
+                  <span className="text-eskort-red">
+                    {featuredTitleWords[2] ?? ""}
+                  </span>
+                  {featuredTitleWords.length > 3 && (
+                    <> {featuredTitleWords.slice(3).join(" ")}</>
+                  )}
+                </h1>
+              </div>
+
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="pt-0.5 text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Description:
+                </p>
+                <p className="text-sm leading-relaxed">
+                  Sweet pineapple chutney and bubbling mozzarella on a quick
+                  beer-or-cider dough, finished with crispy Eskort streaky bacon.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="pt-0.5 text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Ingredients:
+                </p>
+                <div>
+                  <ul className="space-y-2 text-sm leading-relaxed">
+                    {featuredIngredients.map((ingredient) => (
+                      <li key={ingredient} className="relative pl-3.5 before:absolute before:left-0 before:text-eskort-red before:content-['•']">
+                        {ingredient}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                    Pantry: salt to taste, 30 ml (2 T) olive oil
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Prep time:
+                </p>
+                <p className="text-sm">15 min</p>
+              </div>
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Cook time:
+                </p>
+                <p className="text-sm">{featuredRecipe.timeMinutes - 15} min</p>
+              </div>
+              <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 border-b border-eskort-black/15 py-4 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-6">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-eskort-red">
+                  Serves:
+                </p>
+                <p className="text-sm">4–6</p>
+              </div>
+
+              <button
+                type="button"
+                disabled
+                className="mt-6 rounded-full border-2 border-eskort-black px-7 py-3 text-sm font-bold uppercase tracking-wide text-eskort-black opacity-60"
+              >
+                Add to my braai plan
+              </button>
+            </div>
+          )}
+
+          <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card">
             <video
               className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
                 videoReady ? "opacity-100" : "opacity-0"
