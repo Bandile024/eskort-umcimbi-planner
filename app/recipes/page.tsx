@@ -158,29 +158,8 @@ export default function RecipesPage() {
         <div className="mx-auto max-w-7xl">
           <div className="mx-auto flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card md:w-1/2">
             <p className="text-sm text-gray-300 sm:text-base">
-              No video currently. Send me the video file and I&apos;ll add it
-              here.
+              No video currently
             </p>
-          </div>
-          <div className="mx-auto mt-8 max-w-5xl text-center">
-            <p className="font-display text-sm tracking-[0.3em] text-eskort-red">
-              FLAVOUR LOADED
-            </p>
-            <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-eskort-black sm:text-7xl">
-              EASY BRAAI <span className="text-eskort-red">RECIPES</span>
-            </h1>
-            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-gray-600 sm:text-base">
-              Find something delicious to make, then plan your next braai with
-              Eskort.
-            </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <a href="#all-recipes" className="btn-primary">
-                Browse Recipes
-              </a>
-              <Link href="/event-details" className="btn-secondary">
-                Start Planning
-              </Link>
-            </div>
           </div>
         </div>
       </section>

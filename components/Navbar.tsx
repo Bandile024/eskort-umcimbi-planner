@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ShoppingCart, User, ChevronDown, Menu, X, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
 export default function Navbar() {
+  const pathname = usePathname();
   const router = useRouter();
   const { user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -52,7 +53,12 @@ export default function Navbar() {
           <div className="flex items-center gap-3 ml-auto">
             <Link
               href="/recipes"
-              className="hidden sm:inline-flex text-sm font-medium text-gray-200 transition-colors hover:text-eskort-yellow"
+              aria-current={pathname === "/recipes" ? "page" : undefined}
+              className={`hidden sm:inline-flex rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                pathname === "/recipes"
+                  ? "bg-white/10 text-eskort-yellow"
+                  : "text-gray-200 hover:text-eskort-yellow"
+              }`}
             >
               Recipes
             </Link>
@@ -115,7 +121,12 @@ export default function Navbar() {
         <div className="md:hidden bg-eskort-black border-t border-gray-800 px-4 py-4 space-y-3 animate-fade-in">
           <Link
             href="/recipes"
-            className="block py-2 text-sm font-medium text-gray-200 hover:text-eskort-yellow"
+            aria-current={pathname === "/recipes" ? "page" : undefined}
+            className={`block rounded-md px-2 py-2 text-sm font-medium ${
+              pathname === "/recipes"
+                ? "bg-white/10 text-eskort-yellow"
+                : "text-gray-200 hover:text-eskort-yellow"
+            }`}
             onClick={() => setMobileOpen(false)}
           >
             Recipes
