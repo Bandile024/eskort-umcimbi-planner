@@ -159,7 +159,7 @@ export default function RecipesPage() {
               className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
                 videoReady ? "opacity-100" : "opacity-0"
               }`}
-              src="/videos/recipes-hero.mp4"
+              src="/videos/recipes.hero.mp4"
               controls
               muted
               loop
