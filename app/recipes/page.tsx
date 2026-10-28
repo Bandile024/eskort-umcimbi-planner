@@ -108,6 +108,7 @@ const toRecipes = (csv: string): Recipe[] =>
 export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [activeFilter, setActiveFilter] = useState<TimeFilter>("all");
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -155,6 +156,12 @@ export default function RecipesPage() {
         return true;
       }),
     [activeFilter, recipes]
+  );
+  const recipesPerPage = 3;
+  const pageCount = Math.max(1, Math.ceil(filteredRecipes.length / recipesPerPage));
+  const visibleRecipes = filteredRecipes.slice(
+    (currentPage - 1) * recipesPerPage,
+    currentPage * recipesPerPage
   );
   const featuredRecipe = recipes[0];
   const featuredTitleWords = featuredRecipe?.name.split(" ") ?? [];
@@ -287,7 +294,10 @@ export default function RecipesPage() {
             <button
               key={filter.id}
               type="button"
-              onClick={() => setActiveFilter(filter.id)}
+              onClick={() => {
+                setActiveFilter(filter.id);
+                setCurrentPage(1);
+              }}
               aria-pressed={activeFilter === filter.id}
               className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeFilter === filter.id
@@ -309,40 +319,103 @@ export default function RecipesPage() {
             Loading recipes…
           </p>
         ) : filteredRecipes.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-            {filteredRecipes.map((recipe) => (
-              <article
-                key={recipe.id}
-                className="product-card flex h-full flex-col border border-gray-800"
+          <div className="mx-auto max-w-6xl">
+            <div className="grid grid-cols-[12%_minmax(0,1fr)_12%] items-center gap-1 sm:grid-cols-[15%_minmax(0,1fr)_15%] sm:gap-3">
+              <button
+                type="button"
+                aria-label="Previous recipe page"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                className="justify-self-center disabled:pointer-events-none disabled:opacity-30"
               >
-                <div className="relative block aspect-[16/10] overflow-hidden bg-eskort-dark-card-2">
-                  <Image
-                    src={recipe.image}
-                    alt={recipe.name}
-                    fill
-                    unoptimized
-                    sizes="(max-width: 640px) 100vw, 25vw"
-                    className="object-cover"
-                  />
-                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-1 text-[10px] font-medium text-white">
-                    <Clock3 size={11} aria-hidden="true" />
-                    {recipe.timeCard}
-                  </span>
-                </div>
-                <div className="flex flex-1 flex-col p-3">
-                  <h3 className="mb-3 flex-1 text-sm font-bold leading-snug text-white">
-                    {recipe.name}
-                  </h3>
-                  <button
-                    type="button"
-                    className="flex w-[65%] self-start items-center justify-between rounded-full border border-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
+                <ChevronLeft
+                  size={42}
+                  strokeWidth={3}
+                  aria-hidden="true"
+                  className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
+                />
+              </button>
+
+              <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
+                {visibleRecipes.map((recipe) => (
+                  <article
+                    key={recipe.id}
+                    className="product-card flex h-full min-w-0 flex-col border border-gray-800"
                   >
-                    {recipe.button}
-                    <ChevronRight size={15} strokeWidth={3} aria-hidden="true" />
+                    <div className="relative block aspect-[16/10] overflow-hidden bg-eskort-dark-card-2">
+                      <Image
+                        src={recipe.image}
+                        alt={recipe.name}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 640px) 28vw, 25vw"
+                        className="object-cover"
+                      />
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-1 text-[10px] font-medium text-white">
+                        <Clock3 size={11} aria-hidden="true" />
+                        {recipe.timeCard}
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col p-3">
+                      <h3 className="mb-3 flex-1 text-sm font-bold leading-snug text-white">
+                        {recipe.name}
+                      </h3>
+                      <button
+                        type="button"
+                        className="flex w-[65%] self-start items-center justify-between rounded-full border border-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
+                      >
+                        {recipe.button}
+                        <ChevronRight size={15} strokeWidth={3} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                aria-label="Next recipe page"
+                disabled={currentPage === pageCount}
+                onClick={() =>
+                  setCurrentPage((page) => Math.min(pageCount, page + 1))
+                }
+                className="justify-self-center disabled:pointer-events-none disabled:opacity-30"
+              >
+                <ChevronRight
+                  size={42}
+                  strokeWidth={3}
+                  aria-hidden="true"
+                  className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
+                />
+              </button>
+            </div>
+
+            <nav
+              aria-label="Recipe pages"
+              className="mt-7 flex justify-center gap-2"
+            >
+              {Array.from({ length: pageCount }, (_, index) => {
+                const page = index + 1;
+                const isActive = currentPage === page;
+
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    aria-label={`Go to recipe page ${page}`}
+                    aria-current={isActive ? "page" : undefined}
+                    onClick={() => setCurrentPage(page)}
+                    className={`flex h-9 min-w-9 items-center justify-center rounded-full border px-3 text-sm font-semibold transition-colors ${
+                      isActive
+                        ? "border-eskort-red bg-eskort-red text-white"
+                        : "border-gray-300 bg-white text-gray-700 hover:border-eskort-red hover:text-eskort-red"
+                    }`}
+                  >
+                    {page}
                   </button>
-                </div>
-              </article>
-            ))}
+                );
+              })}
+            </nav>
           </div>
         ) : (
           <p className="py-10 text-center text-sm text-gray-600">
