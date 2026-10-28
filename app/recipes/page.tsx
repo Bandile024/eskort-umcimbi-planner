@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Play } from "lucide-react";
+import { ChevronRight, Clock3 } from "lucide-react";
 
 type Recipe = {
   id: string;
@@ -153,34 +153,33 @@ export default function RecipesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-eskort-dark-bg">
+    <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
       <section className="px-4 pb-14 pt-8 sm:px-6 md:pb-20 md:pt-12">
         <div className="mx-auto max-w-7xl">
-          <div className="relative mx-auto flex aspect-video max-h-[34rem] min-h-64 max-w-5xl items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-gradient-to-br from-eskort-dark-card-2 via-eskort-dark-bg to-black shadow-card">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(245,168,0,0.12),_transparent_60%)]" />
-            <div className="relative flex flex-col items-center px-6 text-center">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-eskort-yellow/50 bg-eskort-yellow/10 text-eskort-yellow sm:h-20 sm:w-20">
-                <Play size={30} fill="currentColor" aria-hidden="true" />
-              </div>
-              <p className="font-display text-sm tracking-[0.3em] text-eskort-yellow">
-                FLAVOUR LOADED
-              </p>
-              <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-white sm:text-7xl">
-                EASY BRAAI <span className="text-eskort-yellow">RECIPES</span>
-              </h1>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-gray-300 sm:text-base">
-                Find something delicious to make, then plan your next braai with
-                Eskort.
-              </p>
-              <div className="mt-7 flex flex-wrap justify-center gap-3">
-                <a href="#all-recipes" className="btn-primary">
-                  Browse Recipes
-                </a>
-                <Link href="/event-details" className="btn-secondary">
-                  Start Planning
-                </Link>
-              </div>
-              <p className="mt-5 text-xs text-gray-500">Video coming soon</p>
+          <div className="mx-auto flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card md:w-1/2">
+            <p className="text-sm text-gray-300 sm:text-base">
+              No video currently. Send me the video file and I&apos;ll add it
+              here.
+            </p>
+          </div>
+          <div className="mx-auto mt-8 max-w-5xl text-center">
+            <p className="font-display text-sm tracking-[0.3em] text-eskort-red">
+              FLAVOUR LOADED
+            </p>
+            <h1 className="mt-2 font-display text-5xl leading-none tracking-wide text-eskort-black sm:text-7xl">
+              EASY BRAAI <span className="text-eskort-red">RECIPES</span>
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-gray-600 sm:text-base">
+              Find something delicious to make, then plan your next braai with
+              Eskort.
+            </p>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              <a href="#all-recipes" className="btn-primary">
+                Browse Recipes
+              </a>
+              <Link href="/event-details" className="btn-secondary">
+                Start Planning
+              </Link>
             </div>
           </div>
         </div>
@@ -193,9 +192,9 @@ export default function RecipesPage() {
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="step-indicator">Flavour loaded</p>
-            <h2 className="section-title text-white">All Recipes</h2>
+            <h2 className="section-title text-eskort-black">All Recipes</h2>
           </div>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-gray-600">
             {loading ? "Loading recipes…" : `${recipes.length} recipes`}
           </p>
         </div>
@@ -210,7 +209,7 @@ export default function RecipesPage() {
               className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
                 activeFilter === filter.id
                   ? "border-eskort-yellow bg-eskort-yellow text-eskort-black"
-                  : "border-gray-700 bg-eskort-dark-card text-gray-300 hover:border-eskort-yellow/60 hover:text-white"
+                  : "border-gray-300 bg-white text-gray-700 hover:border-eskort-red/60 hover:text-eskort-black"
               }`}
             >
               {filter.label}
@@ -223,7 +222,7 @@ export default function RecipesPage() {
             {loadError}
           </p>
         ) : loading ? (
-          <p className="py-10 text-center text-sm text-gray-400" role="status">
+          <p className="py-10 text-center text-sm text-gray-600" role="status">
             Loading recipes…
           </p>
         ) : filteredRecipes.length > 0 ? (
@@ -261,17 +260,17 @@ export default function RecipesPage() {
                     href={recipe.source}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn-red flex items-center justify-center rounded-full px-4 py-2.5 text-xs"
+                    className="flex items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
                   >
                     {recipe.button}
-                    <span className="ml-1" aria-hidden="true">→</span>
+                    <ChevronRight size={18} strokeWidth={3} aria-hidden="true" />
                   </a>
                 </div>
               </article>
             ))}
           </div>
         ) : (
-          <p className="py-10 text-center text-sm text-gray-400">
+          <p className="py-10 text-center text-sm text-gray-600">
             No recipes match this time range.
           </p>
         )}
