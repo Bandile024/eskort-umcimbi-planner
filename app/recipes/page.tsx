@@ -244,7 +244,7 @@ export default function RecipesPage() {
               size={42}
               strokeWidth={3}
               aria-hidden="true"
-              className="shrink-0 text-eskort-black"
+              className="shrink-0 cursor-default text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
             />
             <div className="relative flex aspect-video min-w-0 flex-1 items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
             <video
@@ -270,7 +270,7 @@ export default function RecipesPage() {
               size={42}
               strokeWidth={3}
               aria-hidden="true"
-              className="shrink-0 text-eskort-black"
+              className="shrink-0 cursor-default text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
             />
           </div>
         </div>
