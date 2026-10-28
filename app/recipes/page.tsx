@@ -102,6 +102,7 @@ export default function RecipesPage() {
   const [activeFilter, setActiveFilter] = useState<TimeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [videoReady, setVideoReady] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -153,10 +154,26 @@ export default function RecipesPage() {
     <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
       <section className="px-4 pb-14 pt-8 sm:px-6 md:pb-20 md:pt-12">
         <div className="mx-auto max-w-7xl">
-          <div className="mx-auto flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card md:w-1/2">
-            <p className="text-sm text-gray-300 sm:text-base">
-              No video currently
-            </p>
+          <div className="relative mx-auto flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card md:w-1/2">
+            <video
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
+                videoReady ? "opacity-100" : "opacity-0"
+              }`}
+              src="/videos/recipes-hero.mp4"
+              controls
+              muted
+              loop
+              playsInline
+              preload="auto"
+              aria-label="Recipes hero video"
+              onLoadedMetadata={() => setVideoReady(true)}
+              onError={() => setVideoReady(false)}
+            />
+            {!videoReady && (
+              <p className="pointer-events-none text-sm text-gray-300 sm:text-base">
+                No video currently
+              </p>
+            )}
           </div>
         </div>
       </section>
