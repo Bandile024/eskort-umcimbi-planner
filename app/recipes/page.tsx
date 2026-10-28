@@ -254,7 +254,7 @@ export default function RecipesPage() {
             />
             <div className="relative flex aspect-video min-w-0 flex-1 items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
             <video
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
               controls
               muted
               loop
