@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Clock3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
 
 type Recipe = {
   id: string;
@@ -232,34 +232,46 @@ export default function RecipesPage() {
 
               <button
                 type="button"
-                disabled
-                className="mt-6 rounded-full border-2 border-eskort-black px-7 py-3 text-sm font-bold uppercase tracking-wide text-eskort-black opacity-60"
+                className="mt-6 rounded-full border-2 border-eskort-black px-7 py-3 text-sm font-bold uppercase tracking-wide text-eskort-black transition-colors hover:bg-eskort-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eskort-red"
               >
                 Add to my braai plan
               </button>
             </div>
           )}
 
-          <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] px-4 text-center shadow-card">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <ChevronLeft
+              size={42}
+              strokeWidth={3}
+              aria-hidden="true"
+              className="shrink-0 text-eskort-black"
+            />
+            <div className="relative flex aspect-video min-w-0 flex-1 items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
             <video
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity ${
-                videoReady ? "opacity-100" : "opacity-0"
-              }`}
-              src="/videos/recipes.hero.mp4"
+              className="absolute inset-0 h-full w-full object-cover"
               controls
               muted
               loop
               playsInline
-              preload="auto"
+              preload="metadata"
               aria-label="Recipes hero video"
-              onLoadedMetadata={() => setVideoReady(true)}
+              onCanPlay={() => setVideoReady(true)}
               onError={() => setVideoReady(false)}
-            />
+            >
+              <source src="/videos/recipes.hero.mp4" type="video/mp4" />
+            </video>
             {!videoReady && (
-              <p className="pointer-events-none text-sm text-gray-300 sm:text-base">
+              <p className="pointer-events-none absolute text-sm text-gray-300 sm:text-base">
                 No video currently
               </p>
             )}
+            </div>
+            <ChevronRight
+              size={42}
+              strokeWidth={3}
+              aria-hidden="true"
+              className="shrink-0 text-eskort-black"
+            />
           </div>
         </div>
       </section>
