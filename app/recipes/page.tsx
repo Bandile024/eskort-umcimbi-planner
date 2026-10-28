@@ -317,36 +317,36 @@ export default function RecipesPage() {
             Loading recipes…
           </p>
         ) : filteredRecipes.length > 0 ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             {filteredRecipes.map((recipe) => (
               <article
                 key={recipe.id}
                 className="product-card flex h-full flex-col border border-gray-800"
               >
-                <div className="relative block aspect-[4/3] overflow-hidden bg-eskort-dark-card-2">
+                <div className="relative block aspect-[16/10] overflow-hidden bg-eskort-dark-card-2">
                   <Image
                     src={recipe.image}
                     alt={recipe.name}
                     fill
                     unoptimized
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                    sizes="(max-width: 640px) 100vw, 25vw"
                     className="object-cover"
                   />
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-medium text-white">
-                    <Clock3 size={13} aria-hidden="true" />
+                  <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/75 px-2 py-1 text-[10px] font-medium text-white">
+                    <Clock3 size={11} aria-hidden="true" />
                     {recipe.timeCard}
                   </span>
                 </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <h3 className="mb-5 flex-1 text-base font-bold leading-snug text-white">
+                <div className="flex flex-1 flex-col p-3">
+                  <h3 className="mb-3 flex-1 text-sm font-bold leading-snug text-white">
                     {recipe.name}
                   </h3>
                   <button
                     type="button"
-                    className="flex w-[65%] self-start items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
+                    className="flex w-[65%] self-start items-center justify-between rounded-full border border-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
                   >
                     {recipe.button}
-                    <ChevronRight size={18} strokeWidth={3} aria-hidden="true" />
+                    <ChevronRight size={15} strokeWidth={3} aria-hidden="true" />
                   </button>
                 </div>
               </article>
