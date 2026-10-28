@@ -252,9 +252,9 @@ export default function RecipesPage() {
               aria-hidden="true"
               className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
             />
-            <div className="relative flex aspect-video min-w-0 flex-1 items-center justify-center overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
+            <div className="relative min-w-0 flex-1 overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card">
             <video
-              className="absolute inset-0 h-full w-full object-contain"
+              className="block h-auto w-full"
               controls
               muted
               loop
