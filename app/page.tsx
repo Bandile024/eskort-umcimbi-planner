@@ -43,6 +43,9 @@ export default function HomePage() {
               <Link href="/event-details" className="btn-primary text-center">
                 Start Planning
               </Link>
+              <Link href="/recipes" className="btn-secondary text-center">
+                Browse Recipes
+              </Link>
             </div>
           </div>
         </div>
