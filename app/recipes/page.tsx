@@ -238,7 +238,7 @@ export default function RecipesPage() {
 
               <button
                 type="button"
-                className="mt-6 rounded-full border-2 border-eskort-black px-7 py-3 text-sm font-bold uppercase tracking-wide text-eskort-black transition-colors hover:bg-eskort-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eskort-red"
+                className="mt-6 rounded-full border-2 border-eskort-black px-7 py-3 text-sm font-bold uppercase tracking-wide text-eskort-black transition-colors hover:bg-eskort-black hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eskort-red lg:absolute lg:left-0 lg:top-full"
               >
                 Add to my braai plan
               </button>
