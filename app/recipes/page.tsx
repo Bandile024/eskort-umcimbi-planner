@@ -12,7 +12,6 @@ type Recipe = {
   timeMinutes: number;
   button: string;
   image: string;
-  source: string;
 };
 
 type TimeFilter = "all" | "under-30" | "30-45" | "over-45";
@@ -82,9 +81,8 @@ const toRecipes = (csv: string): Recipe[] =>
       const timeMinutes = Number.parseInt(row.time ?? "", 10);
       const name = row.recipe_name?.trim() ?? "";
       const image = row.image?.trim() ?? "";
-      const source = row.web_scraper_start_url?.trim() ?? "";
 
-      if (!name || !image || !source || !Number.isFinite(timeMinutes)) {
+      if (!name || !image || !Number.isFinite(timeMinutes)) {
         return null;
       }
 
@@ -95,7 +93,6 @@ const toRecipes = (csv: string): Recipe[] =>
         timeMinutes,
         button: row.button?.trim() || "View Recipe",
         image,
-        source,
       };
     })
     .filter((recipe): recipe is Recipe => recipe !== null);
@@ -211,39 +208,31 @@ export default function RecipesPage() {
                 key={recipe.id}
                 className="product-card flex h-full flex-col border border-gray-800"
               >
-                <a
-                  href={recipe.source}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative block aspect-[4/3] overflow-hidden bg-eskort-dark-card-2"
-                  aria-label={`${recipe.button}: ${recipe.name}`}
-                >
+                <div className="relative block aspect-[4/3] overflow-hidden bg-eskort-dark-card-2">
                   <Image
                     src={recipe.image}
                     alt={recipe.name}
                     fill
                     unoptimized
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="object-cover"
                   />
                   <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-medium text-white">
                     <Clock3 size={13} aria-hidden="true" />
                     {recipe.timeCard}
                   </span>
-                </a>
+                </div>
                 <div className="flex flex-1 flex-col p-4">
                   <h3 className="mb-5 flex-1 text-base font-bold leading-snug text-white">
                     {recipe.name}
                   </h3>
-                  <a
-                    href={recipe.source}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
+                  <button
+                    type="button"
+                    className="mx-auto flex w-[65%] items-center justify-between rounded-full border border-white px-5 py-2.5 text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-white hover:text-eskort-black"
                   >
                     {recipe.button}
                     <ChevronRight size={18} strokeWidth={3} aria-hidden="true" />
-                  </a>
+                  </button>
                 </div>
               </article>
             ))}
