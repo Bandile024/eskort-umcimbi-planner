@@ -79,6 +79,7 @@ type RecommendedPackage = {
   products: RecommendedProduct[];
   recipes: RecommendedRecipe[];
   servingNote: string;
+  score: number;
 };
 
 const parseCsvRow = (row: string): string[] => {
@@ -271,18 +272,22 @@ const getRecipeMappings = async (): Promise<RecipeMapping[]> => {
   return mappings as RecipeMapping[];
 };
 
-type MappedRecipeIngredient = {
-  source: RecipeIngredient & { productName: string; packGrams: number };
-  product: ProductItem;
-};
-
-type RecipeMatch = {
+type RecipeWithMapping = {
   recipe: RecipeItem;
   mapping: RecipeMapping;
-  ingredients: MappedRecipeIngredient[];
+  primaryProducts: Array<{ product: ProductItem; source: RecipeIngredient & { productName: string; packGrams: number; productPacks: number } }>;
   unmappedIngredients: string[];
   category: string;
   score: number;
+};
+
+type PackagePlan = {
+  recipes: RecipeWithMapping[];
+  primaryProducts: Map<string, { product: ProductItem; quantity: number; grams: number; recipes: string[]; isPrimary: true }>;
+  secondaryProducts: Map<string, { product: ProductItem; quantity: number; grams: number; recipes: string[]; isPrimary: false }>;
+  totalPrice: number;
+  totalGrams: number;
+  eventScore: number;
 };
 
 const getRecipeCategory = (name: string): string => {
@@ -290,6 +295,20 @@ const getRecipeCategory = (name: string): string => {
   if (/chops?/i.test(name)) return "chops";
   if (/espetada|kebab|sosatie/i.test(name)) return "skewers";
   if (/eisbein/i.test(name)) return "eisbein";
+  return "other";
+};
+
+const getProductCategory = (name: string): string => {
+  const normalized = name.toLowerCase();
+  if (/wors|sosatie|sausage|boerewors|twisters|bekkies|skilpadjies/.test(normalized)) return "wors";
+  if (/ribs?/.test(normalized)) return "ribs";
+  if (/chops?|steak|loin|fillet|rump|minute/.test(normalized)) return "chops";
+  if (/espetada|kebab|sosatie/.test(normalized)) return "skewers";
+  if (/eisbein/.test(normalized)) return "eisbein";
+  if (/rashers|bacon/.test(normalized)) return "rashers";
+  if (/pulled|mince|goulash|stew|neck|belly|armadillo|roast/.test(normalized)) return "slow-cook";
+  if (/sauce|mayo|mustard|tomato|chillinaise|secret|prego|chutney/.test(normalized)) return "sauce";
+  if (/biltong|dry wors/.test(normalized)) return "snack";
   return "other";
 };
 
@@ -329,232 +348,230 @@ const buildRecommendedPackages = (
   const occasion = occasionOrder[event?.selectedOccasion ?? "family-braai"] ?? occasionOrder["family-braai"];
   const style = styleOrder[event?.selectedStyle ?? "classic"] ?? styleOrder.classic;
   const mappingsByName = new Map(mappings.map((mapping) => [normalizeName(mapping.recipeName), mapping]));
-  const matches = recipes
+
+  const recipesWithMatches: RecipeWithMapping[] = recipes
     .map((recipe) => {
       const mapping = mappingsByName.get(normalizeName(recipe.name));
       if (!mapping) return null;
 
       const unmappedIngredients = [...mapping.unmappedIngredients];
-      const ingredients = mapping.ingredients.flatMap((source) => {
+      const primaryProducts: RecipeWithMapping["primaryProducts"] = [];
+
+      mapping.ingredients.forEach((source) => {
         const productName = source.productName;
         const packGrams = source.packGrams;
         const productPacks = source.productPacks;
         if (!productName || ((!packGrams || packGrams <= 0) && (!productPacks || productPacks <= 0))) {
           unmappedIngredients.push(source.name);
-          return [];
+          return;
         }
         const product = products.find((candidate) =>
           normalizeName(candidate.name) === normalizeName(productName)
         );
         if (!product || product.price <= 0) {
           unmappedIngredients.push(source.name);
-          return [];
+          return;
         }
-        return [{
-          source: { ...source, productName, packGrams: packGrams ?? 0, productPacks: productPacks ?? 0 },
+        primaryProducts.push({
           product,
-        }];
+          source: { ...source, productName, packGrams: packGrams ?? 0, productPacks: productPacks ?? 0 },
+        });
       });
 
-      if (ingredients.length === 0) return null;
-      return {
-        recipe,
-        mapping,
-        ingredients,
-        unmappedIngredients,
-        category: getRecipeCategory(recipe.name),
-        score: 0,
-      };
+      if (primaryProducts.length === 0) return null;
+
+      const category = getRecipeCategory(recipe.name);
+      const score =
+        Math.max(0, 12 - (style.indexOf(category) < 0 ? 8 : style.indexOf(category) * 2)) +
+        Math.max(0, 8 - (occasion.indexOf(category) < 0 ? 6 : occasion.indexOf(category))) +
+        (recipe.timeMinutes <= 45 && event?.selectedStyle === "gas-braai" ? 3 : 0);
+
+      return { recipe, mapping, primaryProducts, unmappedIngredients, category, score };
     })
-    .filter((match): match is RecipeMatch => match !== null)
-    .filter((match) => {
+    .filter((r): r is RecipeWithMapping => r !== null)
+    .filter((r) => {
       if (/\b(no pork|pork free|pork-free)\b/.test(dietaryPreference)) {
         return !/pork|ribs|eisbein|wors|rashers|bacon|sosatie/i.test(
-          `${match.recipe.name} ${match.ingredients.map((ingredient) => ingredient.source.name).join(" ")}`
+          `${r.recipe.name} ${r.primaryProducts.map((p) => p.source.name).join(" ")}`
         );
       }
       return true;
     })
-    .map((match) => ({
-      ...match,
-      score:
-        Math.max(0, 12 - (style.indexOf(match.category) < 0 ? 8 : style.indexOf(match.category) * 2)) +
-        Math.max(0, 8 - (occasion.indexOf(match.category) < 0 ? 6 : occasion.indexOf(match.category))) +
-        (match.recipe.timeMinutes <= 45 && event?.selectedStyle === "gas-braai" ? 3 : 0),
-    }))
-    .sort((left, right) => right.score - left.score || left.ingredients[0].product.price - right.ingredients[0].product.price);
+    .sort((a, b) => b.score - a.score);
 
-  if (!matches.length) return [];
+  if (recipesWithMatches.length === 0) return [];
 
-  const combinations: RecipeMatch[][] = [];
-  const rankedMatches = matches;
-  for (let first = 0; first < rankedMatches.length; first += 1) {
-    combinations.push([rankedMatches[first]]);
-    for (let second = first + 1; second < rankedMatches.length; second += 1) {
-      combinations.push([rankedMatches[first], rankedMatches[second]]);
-    }
-  }
+  const MAX_PRODUCTS_PER_PACKAGE = 5;
+  const productCategories = new Map<string, ProductItem[]>();
+  products.forEach((p) => {
+    const cat = getProductCategory(p.name);
+    if (!productCategories.has(cat)) productCategories.set(cat, []);
+    productCategories.get(cat)!.push(p);
+  });
 
-  const candidates = combinations.flatMap((combination, index) => {
-    const quantities = new Map<string, { product: ProductItem; quantity: number; grams: number; recipes: string[] }>();
-    combination.forEach((match) => {
-      match.ingredients.forEach(({ source, product }) => {
+  const packages: PackagePlan[] = [];
+  const usedRecipeIds = new Set<string>();
+  const usedProductIds = new Set<string>();
+
+  let recipeIndex = 0;
+  while (recipeIndex < recipesWithMatches.length) {
+    const packageRecipes: RecipeWithMapping[] = [];
+    const primaryProducts = new Map<
+      string,
+      { product: ProductItem; quantity: number; grams: number; recipes: string[]; isPrimary: true }
+    >();
+
+    const maxRecipesPerPackage = 2;
+    let recipesAdded = 0;
+    let i = recipeIndex;
+    while (i < recipesWithMatches.length && recipesAdded < maxRecipesPerPackage) {
+      const match = recipesWithMatches[i];
+      if (usedRecipeIds.has(match.recipe.id)) { i++; continue; }
+
+      let canAdd = true;
+      for (const pp of match.primaryProducts) {
+        if (usedProductIds.has(pp.product.id)) { canAdd = false; break; }
+      }
+      if (!canAdd) { i++; continue; }
+
+      packageRecipes.push(match);
+      usedRecipeIds.add(match.recipe.id);
+      recipesAdded++;
+
+      match.primaryProducts.forEach(({ product, source }) => {
         const packGrams = source.packGrams ?? 0;
         const scaledQuantity = source.grams && packGrams > 0
-          ? source.grams / match.mapping.servings * adultEquivalentGuests / combination.length / packGrams
-          : (source.productPacks ?? 0) * adultEquivalentGuests / match.mapping.servings / combination.length;
+          ? source.grams / match.mapping.servings * adultEquivalentGuests / Math.max(1, packageRecipes.length) / packGrams
+          : (source.productPacks ?? 0) * adultEquivalentGuests / match.mapping.servings / Math.max(1, packageRecipes.length);
         const quantity = Math.max(1, Math.ceil(scaledQuantity));
-        const existing = quantities.get(product.id);
+
+        const existing = primaryProducts.get(product.id);
         if (existing) {
           existing.quantity += quantity;
           existing.recipes.push(match.recipe.name);
         } else {
-          quantities.set(product.id, { product, quantity, grams: packGrams, recipes: [match.recipe.name] });
+          primaryProducts.set(product.id, { product, quantity, grams: packGrams, recipes: [match.recipe.name], isPrimary: true });
         }
+        usedProductIds.add(product.id);
       });
+
+      i++;
+    }
+
+    if (packageRecipes.length === 0) {
+      recipeIndex = i;
+      if (recipeIndex >= recipesWithMatches.length) break;
+      continue;
+    }
+
+    const secondaryProducts = new Map<
+      string,
+      { product: ProductItem; quantity: number; grams: number; recipes: string[]; isPrimary: false }
+    >();
+    const currentCount = primaryProducts.size;
+    const neededSecondary = Math.max(0, MAX_PRODUCTS_PER_PACKAGE - currentCount);
+
+    const categoryPriority = style.length > 0 ? style : occasion;
+    const candidates: ProductItem[] = [];
+    const seen = new Set<string>();
+    for (const cat of categoryPriority) {
+      const catProducts = productCategories.get(cat) || [];
+      for (const p of catProducts) {
+        if (!usedProductIds.has(p.id) && p.price > 0 && !seen.has(p.id)) {
+          candidates.push(p);
+          seen.add(p.id);
+        }
+      }
+    }
+    for (const catProducts of Array.from(productCategories.values())) {
+      for (const p of catProducts) {
+        if (!usedProductIds.has(p.id) && p.price > 0 && !seen.has(p.id)) {
+          candidates.push(p);
+          seen.add(p.id);
+        }
+      }
+    }
+    candidates.slice(0, neededSecondary).forEach((product) => {
+      const quantity = Math.max(1, Math.ceil(adultEquivalentGuests / 8));
+      secondaryProducts.set(product.id, { product, quantity, grams: 0, recipes: [], isPrimary: false });
+      usedProductIds.add(product.id);
     });
 
-    const selected = Array.from(quantities.values());
-    const price = Number(selected.reduce((sum, item) => sum + item.product.price * item.quantity, 0).toFixed(2));
-    if (price > budget || price <= 0) return [];
+    const allProducts = [...Array.from(primaryProducts.values()), ...Array.from(secondaryProducts.values())];
+    const totalPrice = Number(allProducts.reduce((sum, item) => sum + item.product.price * item.quantity, 0).toFixed(2));
+    const totalGrams = allProducts.reduce((sum, item) => sum + item.grams * item.quantity, 0);
+    const eventScore = packageRecipes.reduce((sum, r) => sum + r.score, 0);
 
-    const totalGrams = selected.reduce((sum, item) => sum + item.grams * item.quantity, 0);
-    const eventScore = combination.reduce((sum, match) => sum + match.score, 0);
-    const budgetScore = 30 - Math.abs(price / budget - 0.82) * 30;
-    const portionFitScore = -Math.abs(totalGrams / adultEquivalentGuests - 375) / 5;
-    const recipeDisplay: RecommendedRecipe[] = combination.map((match) => ({
+    if (totalPrice > 0 && totalPrice <= budget * 1.2) {
+      packages.push({ recipes: packageRecipes, primaryProducts, secondaryProducts, totalPrice, totalGrams, eventScore });
+    }
+
+    recipeIndex = i;
+  }
+
+  if (packages.length === 0) return [];
+
+  packages.sort((a, b) => b.eventScore - a.eventScore || a.totalPrice - b.totalPrice);
+
+  const mappedPackages = packages.map((p, index) => {
+    const allProducts = [...Array.from(p.primaryProducts.values()), ...Array.from(p.secondaryProducts.values())];
+    const recipeDisplay: RecommendedRecipe[] = p.recipes.map((match) => ({
       id: match.recipe.id,
       name: match.recipe.name,
       image: match.recipe.image,
-      ingredientProducts: match.ingredients.map((ingredient) => ingredient.product.name),
+      ingredientProducts: match.primaryProducts.map((pp) => pp.product.name),
       unmappedIngredients: match.unmappedIngredients,
     }));
 
-    return [{
-      id: `recipe-package-${index}-${combination.map((match) => match.recipe.id).join("-")}`,
-      name: combination.length === 1
-        ? combination[0].recipe.name
-        : `${combination.length}-recipe menu`,
-      tagline: `Recipes selected for your ${event?.selectedOccasion?.replace(/-/g, " ") ?? "braai"}, scaled for ${totalPeople} guests.`,
-      price,
+    const primaryCount = p.primaryProducts.size;
+    const secondaryCount = p.secondaryProducts.size;
+
+    return {
+      id: `exclusive-package-${index}-${p.recipes.map((r) => r.recipe.id).join("-")}`,
+      name: p.recipes.length === 1
+        ? p.recipes[0].recipe.name
+        : `${p.recipes.length}-Recipe Braai Menu`,
+      tagline: `Curated for your ${event?.selectedOccasion?.replace(/-/g, " ") ?? "braai"}. ${primaryCount} recipe-matched products + ${secondaryCount} complementary picks.`,
+      price: p.totalPrice,
       serves: totalPeople,
-      perPerson: Math.round(price / totalPeople),
-      portionPreview: totalGrams > 0
-        ? `About ${Math.round(totalGrams / adultEquivalentGuests)} g of weighed products per adult-equivalent guest, plus unit-based recipe items.`
-        : `Recipe portions scaled to ${totalPeople} guests from the published serving count.`,
+      perPerson: Math.round(p.totalPrice / totalPeople),
+      portionPreview: p.totalGrams > 0
+        ? `About ${Math.round(p.totalGrams / adultEquivalentGuests)} g of weighed products per adult-equivalent guest.`
+        : `Recipe portions scaled to ${totalPeople} guests.`,
       priceTier: "Balanced" as const,
       badge: null,
-      image: combination[0].recipe.image,
+      image: p.recipes[0].recipe.image,
       bgColor: "#1a2a1a",
-      products: selected.map((item) => ({
+      products: allProducts.map((item) => ({
         name: item.product.name,
         image: item.product.image,
         quantity: item.quantity,
-        why: `Mapped recipe ingredient for ${item.recipes.join(", ")}.`,
+        why: item.isPrimary
+          ? `Recipe ingredient for ${item.recipes.join(", ")}.`
+          : `Complementary for a complete ${event?.selectedStyle ?? "braai"} spread.`,
       })),
       recipes: recipeDisplay,
-      servingNote: "Package quantities include only recipe ingredients that match an Eskort product in the existing catalog. Other recipe ingredients are not included.",
-      score: eventScore + budgetScore + portionFitScore,
-    }];
-  });
-
-  const distinctCandidates = candidates
-    .sort((left, right) => right.score - left.score || left.price - right.price)
-    .filter((candidate, index, all) => all.findIndex((other) =>
-      other.recipes.map((recipe) => recipe.id).sort().join("|") === candidate.recipes.map((recipe) => recipe.id).sort().join("|")
-    ) === index);
-
-  type Candidate = (typeof distinctCandidates)[number];
-  let bestSelection: Candidate[] = [];
-  let bestSelectionScore = Number.NEGATIVE_INFINITY;
-
-  const selectDistinctPackages = (
-    recipeIndex: number,
-    selected: Candidate[],
-    usedRecipeIds: Set<string>,
-    usedPrices: Set<string>,
-    score: number
-  ) => {
-    if (recipeIndex >= rankedMatches.length) {
-      const coveredRecipes = usedRecipeIds.size;
-      const bestCoveredRecipes = bestSelection.reduce(
-        (count, candidate) => count + candidate.recipes.length,
-        0
-      );
-      if (
-        selected.length > bestSelection.length ||
-        (selected.length === bestSelection.length && coveredRecipes > bestCoveredRecipes) ||
-        (selected.length === bestSelection.length &&
-          coveredRecipes === bestCoveredRecipes &&
-          score > bestSelectionScore)
-      ) {
-        bestSelection = [...selected];
-        bestSelectionScore = score;
-      }
-      return;
-    }
-
-    const currentRecipeId = rankedMatches[recipeIndex].recipe.id;
-    if (usedRecipeIds.has(currentRecipeId)) {
-      selectDistinctPackages(recipeIndex + 1, selected, usedRecipeIds, usedPrices, score);
-      return;
-    }
-
-    selectDistinctPackages(recipeIndex + 1, selected, usedRecipeIds, usedPrices, score);
-
-    distinctCandidates.forEach((candidate) => {
-      const candidateRecipeIds = candidate.recipes.map((recipe) => recipe.id);
-      const firstRecipeIndex = rankedMatches.findIndex((match) => match.recipe.id === candidateRecipeIds[0]);
-      const priceKey = candidate.price.toFixed(2);
-      if (
-        firstRecipeIndex !== recipeIndex ||
-        usedPrices.has(priceKey) ||
-        candidateRecipeIds.some((recipeId) => usedRecipeIds.has(recipeId))
-      ) {
-        return;
-      }
-
-      const nextRecipeIds = new Set(usedRecipeIds);
-      candidateRecipeIds.forEach((recipeId) => nextRecipeIds.add(recipeId));
-      const nextPrices = new Set(usedPrices);
-      nextPrices.add(priceKey);
-      selectDistinctPackages(
-        recipeIndex + 1,
-        [...selected, candidate],
-        nextRecipeIds,
-        nextPrices,
-        score + candidate.score
-      );
-    });
-  };
-
-  selectDistinctPackages(0, [], new Set<string>(), new Set<string>(), 0);
-  const uniqueCandidates = bestSelection
-    .sort((left, right) => right.score - left.score || left.price - right.price)
-    .slice(0, 4);
-
-  const prices = uniqueCandidates.map((candidate) => candidate.price).sort((left, right) => left - right);
-  const lowPriceCutoff = prices[Math.floor((prices.length - 1) / 3)] ?? 0;
-  const highPriceCutoff = prices[Math.ceil(((prices.length - 1) * 2) / 3)] ?? 0;
-  const usedNames = new Set<string>();
-
-  return uniqueCandidates.map(({ score: _score, ...candidate }, index) => {
-    const name = index === 0 ? `Top Pick - ${candidate.name}` : candidate.name;
-    const uniqueName = usedNames.has(normalizeName(name)) ? `${name} ${index + 1}` : name;
-    usedNames.add(normalizeName(uniqueName));
-    return {
-      ...candidate,
-      name: uniqueName,
-      badge: `${Math.round((1 - candidate.price / budget) * 100)}% under budget`,
-      priceTier: lowPriceCutoff === highPriceCutoff
-        ? "Balanced"
-        : candidate.price <= lowPriceCutoff
-          ? "Value"
-          : candidate.price >= highPriceCutoff
-            ? "Premium"
-            : "Balanced",
+      servingNote: "Each package uses exclusive products — no overlap with other packages. Primary products match recipe ingredients; secondary products complete the serving plan.",
+      score: p.eventScore,
     };
   });
+
+  const prices = mappedPackages.map((p) => p.price).sort((a, b) => a - b);
+  const lowCutoff = prices[Math.floor((prices.length - 1) / 3)] ?? 0;
+  const highCutoff = prices[Math.ceil(((prices.length - 1) * 2) / 3)] ?? 0;
+
+  return mappedPackages.map((pkg, index) => ({
+    ...pkg,
+    name: index === 0 ? `Top Pick - ${pkg.name}` : pkg.name,
+    badge: `${Math.round((1 - pkg.price / budget) * 100)}% under budget`,
+    priceTier: lowCutoff === highCutoff
+      ? "Balanced"
+      : pkg.price <= lowCutoff
+        ? "Value"
+        : pkg.price >= highCutoff
+          ? "Premium"
+          : "Balanced",
+  }));
 };
 
 export default function RecommendedPackagesPage() {
@@ -565,7 +582,7 @@ export default function RecommendedPackagesPage() {
   const [recipes, setRecipes] = useState<RecipeItem[]>([]);
   const [recipeMappings, setRecipeMappings] = useState<RecipeMapping[]>([]);
   const [recommendationError, setRecommendationError] = useState("");
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [visibleCount, setVisibleCount] = useState(4);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -821,7 +838,7 @@ export default function RecommendedPackagesPage() {
         {hasMorePackages && (
           <button
             type="button"
-            onClick={() => setVisibleCount(Math.min(visibleCount + 5, 10))}
+            onClick={() => setVisibleCount((prev) => prev + 4)}
             className="mb-8 w-full rounded-xl bg-eskort-red py-3 text-sm font-bold uppercase tracking-wide text-white transition-opacity hover:opacity-90"
           >
             See More
