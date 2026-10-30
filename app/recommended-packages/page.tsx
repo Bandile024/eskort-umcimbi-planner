@@ -272,7 +272,7 @@ const getRecipeMappings = async (): Promise<RecipeMapping[]> => {
 };
 
 type MappedRecipeIngredient = {
-  source: RecipeIngredient & { productName: string; packGrams: number };
+  source: RecipeIngredient & { productName: string; packGrams: number; productPacks: number };
   product: ProductItem;
 };
 
