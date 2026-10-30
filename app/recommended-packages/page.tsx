@@ -14,6 +14,31 @@ type EventDetails = {
   uninvited: number;
   budget: number;
   selectedStyle: string;
+  dietaryPreference?: string;
+  platePreference?: string;
+};
+
+type RecipeItem = {
+  id: string;
+  name: string;
+  image: string;
+  timeMinutes: number;
+};
+
+type RecipeIngredient = {
+  name: string;
+  grams?: number;
+  productName?: string;
+  packGrams?: number;
+  productPacks?: number;
+};
+
+type RecipeMapping = {
+  recipeName: string;
+  sourceUrl: string;
+  servings: number;
+  ingredients: RecipeIngredient[];
+  unmappedIngredients: string[];
 };
 
 type ProductItem = {
@@ -31,6 +56,14 @@ type RecommendedProduct = {
   alternative?: string;
 };
 
+type RecommendedRecipe = {
+  id: string;
+  name: string;
+  image: string;
+  ingredientProducts: string[];
+  unmappedIngredients: string[];
+};
+
 type RecommendedPackage = {
   id: string;
   name: string;
@@ -38,11 +71,13 @@ type RecommendedPackage = {
   price: number;
   serves: number;
   perPerson: number;
+  portionPreview: string;
   priceTier: "Value" | "Balanced" | "Premium";
   badge: string | null;
   image: string;
   bgColor: string;
   products: RecommendedProduct[];
+  recipes: RecommendedRecipe[];
   servingNote: string;
 };
 
@@ -98,17 +133,12 @@ const parseCsvRecords = (csvText: string): Record<string, string>[] => {
 };
 
 const readCsvRecords = async (path: string): Promise<Record<string, string>[]> => {
-  try {
-    const response = await fetch(path, { cache: "no-store" });
-    if (!response.ok) {
-      return [];
-    }
-
-    const text = await response.text();
-    return parseCsvRecords(text);
-  } catch {
-    return [];
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Could not load ${path} (${response.status}).`);
   }
+  const text = await response.text();
+  return parseCsvRecords(text);
 };
 
 const parsePriceValue = (value: string): number | null => {
@@ -211,348 +241,320 @@ const getProductCatalog = async (): Promise<ProductItem[]> => {
     .filter((item): item is ProductItem => item !== null);
 };
 
+const getRecipes = async (): Promise<RecipeItem[]> => {
+  const rows = await readCsvRecords("/data/recipes_data_true.csv");
+  return rows
+    .map((row, index) => {
+      const name = row.recipe_name?.trim() ?? "";
+      const image = row.image?.trim() ?? "";
+      const timeMinutes = Number.parseInt(row.time ?? "", 10);
+      if (!name || !image || !Number.isFinite(timeMinutes)) return null;
+      return {
+        id: row.web_scraper_order || `${index}-${name}`,
+        name,
+        image,
+        timeMinutes,
+      };
+    })
+    .filter((recipe): recipe is RecipeItem => recipe !== null);
+};
+
+const getRecipeMappings = async (): Promise<RecipeMapping[]> => {
+  const response = await fetch("/data/recipe-product-mapping.json", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Could not load recipe-product mapping (${response.status}).`);
+  }
+  const mappings: unknown = await response.json();
+  if (!Array.isArray(mappings) || mappings.length === 0) {
+    throw new Error("Recipe-product mapping data is empty or invalid.");
+  }
+  return mappings as RecipeMapping[];
+};
+
+type MappedRecipeIngredient = {
+  source: RecipeIngredient & { productName: string; packGrams: number };
+  product: ProductItem;
+};
+
+type RecipeMatch = {
+  recipe: RecipeItem;
+  mapping: RecipeMapping;
+  ingredients: MappedRecipeIngredient[];
+  unmappedIngredients: string[];
+  category: string;
+  score: number;
+};
+
+const getRecipeCategory = (name: string): string => {
+  if (/ribs?/i.test(name)) return "ribs";
+  if (/chops?/i.test(name)) return "chops";
+  if (/espetada|kebab|sosatie/i.test(name)) return "skewers";
+  if (/eisbein/i.test(name)) return "eisbein";
+  return "other";
+};
+
 const buildRecommendedPackages = (
   products: ProductItem[],
+  recipes: RecipeItem[],
+  mappings: RecipeMapping[],
   event: EventDetails | null
 ): RecommendedPackage[] => {
-  if (!products.length) return [];
+  if (!products.length || !recipes.length || !mappings.length) return [];
 
-  const adults = Math.max(1, event?.guests ?? 8);
-  const kids = Math.max(0, event?.kids ?? 0);
-  const bufferGuests = Math.max(0, event?.uninvited ?? 0);
-  const totalPeople = adults + kids + bufferGuests;
-  const adultEquivalentGuests = adults + bufferGuests + kids * 0.55;
-  const budget = event?.budget || 2500;
-  const targetMeatGrams = adultEquivalentGuests * 350;
-
-  const categoryPatterns: Record<string, RegExp> = {
-    wors: /wors|sausage|sosatie|skilpad|bekkies/,
-    ribs: /ribs?|spare/,
-    grill: /steak|chops?|fillet|rump|loin|kassler/,
-    potjie: /mince|goulash|stew|neck|belly|armadillo/,
-    marinated: /marinated|prego|espetada|pulled pork/,
-  };
-  const packDefaults: Record<string, { grams: number; edibleYield: number }> = {
-    wors: { grams: 500, edibleYield: 0.98 },
-    ribs: { grams: 800, edibleYield: 0.72 },
-    grill: { grams: 500, edibleYield: 0.9 },
-    potjie: { grams: 500, edibleYield: 0.9 },
-    marinated: { grams: 500, edibleYield: 0.9 },
-  };
-  const styleCategories: Record<string, string[]> = {
-    classic: ["wors", "grill", "ribs"],
-    "shisa-nyama": ["wors", "grill", "ribs"],
-    potjie: ["potjie", "wors", "marinated"],
-    "gas-braai": ["marinated", "grill", "ribs"],
-  };
-  const occasionPatterns: Record<string, RegExp> = {
-    "family-braai": /wors|chops?|fillet|ribs?|marinated/,
-    "friends-get-together": /wors|ribs?|steak|sosatie|fillet/,
-    "game-day": /wors|ribs?|steak|marinated/,
-    birthday: /ribs?|steak|wors|fillet/,
-    wedding: /fillet|steak|ribs?|marinated/,
-    corporate: /fillet|steak|ribs?|wors/,
-  };
-  const styleMixes: Record<string, Record<string, number>> = {
-    classic: { wors: 0.35, grill: 0.4, ribs: 0.25 },
-    "shisa-nyama": { wors: 0.45, grill: 0.3, ribs: 0.25 },
-    potjie: { potjie: 0.75, wors: 0.15, marinated: 0.1 },
-    "gas-braai": { marinated: 0.35, grill: 0.4, ribs: 0.25 },
-  };
-  const preferredCategories = styleCategories[event?.selectedStyle ?? "classic"] ?? styleCategories.classic;
-  const occasionPattern = occasionPatterns[event?.selectedOccasion ?? "family-braai"] ?? occasionPatterns["family-braai"];
-  const occasionPriority: Record<string, string[]> = {
-    "family-braai": ["wors", "grill", "ribs", "marinated"],
-    "friends-get-together": ["wors", "ribs", "marinated", "grill"],
-    "game-day": ["wors", "ribs", "marinated", "grill"],
-    birthday: ["wors", "grill", "ribs", "marinated"],
-    wedding: ["grill", "ribs", "marinated", "wors"],
-    corporate: ["grill", "marinated", "wors", "ribs"],
-  };
-  const occasionCategories = occasionPriority[event?.selectedOccasion ?? "family-braai"] ?? occasionPriority["family-braai"];
-
-  const categoryFor = (product: ProductItem) =>
-    Object.keys(categoryPatterns).find((category) => categoryPatterns[category].test(normalizeName(product.name)));
-  const scoreProduct = (product: ProductItem, category: string) => {
-    const name = normalizeName(product.name);
-    const styleRank = preferredCategories.indexOf(category);
-    const occasionRank = occasionCategories.indexOf(category);
-    return (styleRank >= 0 ? 12 - styleRank * 2 : 0) +
-      (occasionRank >= 0 ? 8 - occasionRank : 0) +
-      (occasionPattern.test(name) ? 4 : 0) +
-      (product.price > 0 ? 2 : 0);
-  };
-  const candidates = Object.fromEntries(
-    Object.keys(categoryPatterns).map((category) => {
-      const pricedProducts = products
-        .filter((product) => categoryFor(product) === category && product.price > 0)
-        .sort((a, b) => a.price - b.price);
-      const lastIndex = pricedProducts.length - 1;
-      const priceRangeIndexes = Array.from({ length: 12 }, (_, index) =>
-        Math.round((lastIndex * index) / 11)
-      );
-      const selectedProducts = Array.from(new Set(priceRangeIndexes.map((index) => pricedProducts[index]).filter(Boolean)));
-
-      return [
-        category,
-        selectedProducts.sort((a, b) => scoreProduct(b, category) - scoreProduct(a, category) || a.price - b.price),
-      ];
-    })
-  ) as Record<string, ProductItem[]>;
-
-  const availableCategories = preferredCategories.filter((category) => candidates[category].length > 0);
-  if (availableCategories.length === 0) return [];
-
-  const templates = [
-    availableCategories.slice(0, 3),
-    ...availableCategories.flatMap((category, index) =>
-      availableCategories.slice(index + 1).map((other) => [category, other])
-    ),
-    ...availableCategories.map((category) => [category]),
-  ].filter((template, index, all) =>
-    template.length > 0 && all.findIndex((candidate) => candidate.join("|") === template.join("|")) === index
+  const totalPeople = Math.max(1, (event?.guests ?? 8) + (event?.kids ?? 0) + (event?.uninvited ?? 0));
+  const adultEquivalentGuests = Math.max(
+    1,
+    (event?.guests ?? 8) + (event?.uninvited ?? 0) + (event?.kids ?? 0) * 0.55
   );
-  const mix = styleMixes[event?.selectedStyle ?? "classic"] ?? styleMixes.classic;
-  const reasonFor = (category: string) => {
-    const reasons: Record<string, string> = {
-      wors: "A familiar South African braai staple that is easy to portion and share.",
-      grill: "Adds a substantial grill cut for variety alongside the wors.",
-      ribs: "A shareable, slow-grill favourite that makes the spread feel special.",
-      potjie: "A hearty slow-cook centrepiece suited to a communal potjie meal.",
-      marinated: "Pre-seasoned for convenient preparation and consistent flavour.",
-    };
-    return reasons[category] ?? "Chosen to complement the event menu.";
+  const budget = event?.budget || 2500;
+  const dietaryPreference = normalizeName(`${event?.dietaryPreference ?? ""} ${event?.platePreference ?? ""}`);
+  const excludesMeat = /\b(vegan|vegetarian|plant based|pescatarian)\b/.test(dietaryPreference);
+  const requiresCertification = /\b(halal|kosher)\b/.test(dietaryPreference);
+  if (excludesMeat || requiresCertification) return [];
+
+  const occasionOrder: Record<string, string[]> = {
+    "family-braai": ["chops", "ribs", "skewers", "rashers", "eisbein"],
+    "friends-get-together": ["ribs", "skewers", "rashers", "chops", "eisbein"],
+    "game-day": ["ribs", "rashers", "chops", "skewers", "eisbein"],
+    birthday: ["skewers", "ribs", "chops", "rashers", "eisbein"],
+    wedding: ["skewers", "ribs", "chops", "eisbein"],
+    corporate: ["skewers", "chops", "ribs", "rashers"],
   };
-  const servingNote = event?.selectedStyle === "potjie"
-    ? "Serve with pap or samp, chakalaka and seasonal vegetables for a satisfying potjie table."
-    : event?.selectedOccasion === "shisa-nyama"
-      ? "Round out the shisa nyama spread with pap, chakalaka, atchar and fresh rolls."
-      : event?.selectedOccasion === "game-day" || event?.selectedOccasion === "friends-get-together"
-        ? "Add pap, chakalaka, a crunchy slaw and braai rolls for an easy crowd-style spread."
-        : "Complete the braai with pap, chakalaka, tomato-onion relish, braai broodjies and a green salad.";
+  const styleOrder: Record<string, string[]> = {
+    classic: ["chops", "ribs", "skewers", "rashers", "eisbein"],
+    "shisa-nyama": ["skewers", "ribs", "chops", "rashers"],
+    potjie: ["eisbein", "ribs", "chops"],
+    "gas-braai": ["rashers", "skewers", "chops", "ribs"],
+  };
+  const occasion = occasionOrder[event?.selectedOccasion ?? "family-braai"] ?? occasionOrder["family-braai"];
+  const style = styleOrder[event?.selectedStyle ?? "classic"] ?? styleOrder.classic;
+  const mappingsByName = new Map(mappings.map((mapping) => [normalizeName(mapping.recipeName), mapping]));
+  const matches = recipes
+    .map((recipe) => {
+      const mapping = mappingsByName.get(normalizeName(recipe.name));
+      if (!mapping) return null;
 
-  const createRecommendations = (coverage: number) => {
-    const recommendations: Array<Omit<RecommendedPackage, "priceTier"> & { score: number }> = [];
-    const usedCombinations = new Set<string>();
-
-    const getSelections = (template: string[]): ProductItem[][] =>
-      template.reduce<ProductItem[][]>(
-        (selections, category) => selections.flatMap((selection) =>
-          candidates[category].map((product) => [...selection, product])
-        ),
-        [[]]
-      );
-
-    templates.forEach((template, templateIndex) => {
-      const templateShare = template.reduce((sum, category) => sum + (mix[category] ?? 1), 0);
-
-      getSelections(template).forEach((selected) => {
-        const key = `${template.join(",")}:${selected.map((product) => product.id).join("|")}`;
-        if (usedCombinations.has(key)) return;
-
-        const meatDetails = selected.map((product) => {
-          const category = categoryFor(product)!;
-          const weightMatch = product.name.match(/(\d+(?:[.,]\d+)?)\s*(kg|g)\b/i);
-          const parsedWeight = weightMatch
-            ? Number(weightMatch[1].replace(",", ".")) * (weightMatch[2].toLowerCase() === "kg" ? 1000 : 1)
-            : 0;
-          const defaultPack = packDefaults[category];
-          const packGrams = parsedWeight || (/bulk|family pack/i.test(product.name) ? 1000 : defaultPack.grams);
-          const categoryShare = (mix[category] ?? 1) / templateShare;
-          const requiredGrams = targetMeatGrams * coverage * categoryShare;
-          const quantity = Math.max(1, Math.ceil(requiredGrams / (packGrams * defaultPack.edibleYield)));
-          const cheaperAlternative = candidates[category]
-            .filter((candidate) => candidate.id !== product.id && candidate.price < product.price)
-            .sort((a, b) => a.price - b.price)[0];
-
-          return {
-            product,
-            category,
-            quantity,
-            packGrams,
-            edibleYield: defaultPack.edibleYield,
-            why: reasonFor(category),
-            alternative: cheaperAlternative
-              ? `Budget swap: ${cheaperAlternative.name} saves about R${(product.price - cheaperAlternative.price).toFixed(2)} per pack.`
-              : undefined,
-          };
-        });
-
-        const meatWeight = meatDetails.reduce((sum, item) => sum + item.packGrams * item.edibleYield * item.quantity, 0);
-        const baseServes = Math.max(1, Math.min(totalPeople, Math.floor(meatWeight / (targetMeatGrams / totalPeople))));
-        const quantityScale = totalPeople / baseServes;
-        const scaledMeatDetails = meatDetails.map((item) => ({
-          ...item,
-          quantity: Math.min(3, Math.ceil(item.quantity * quantityScale)),
-        }));
-        const hasQuantityVariety = new Set(scaledMeatDetails.map((item) => item.quantity)).size > 1;
-
-        if (!hasQuantityVariety && scaledMeatDetails.length > 1) {
-          const quantityAdjustment = [...scaledMeatDetails].sort((a, b) =>
-            (mix[a.category] ?? 1) - (mix[b.category] ?? 1)
-          )[0];
-          const adjustmentIndex = scaledMeatDetails.findIndex((item) => item === quantityAdjustment);
-          scaledMeatDetails[adjustmentIndex] = {
-            ...quantityAdjustment,
-            quantity: quantityAdjustment.quantity > 1
-              ? quantityAdjustment.quantity - 1
-              : Math.min(3, quantityAdjustment.quantity + 1),
-          };
+      const unmappedIngredients = [...mapping.unmappedIngredients];
+      const ingredients = mapping.ingredients.flatMap((source) => {
+        const productName = source.productName;
+        const packGrams = source.packGrams;
+        const productPacks = source.productPacks;
+        if (!productName || ((!packGrams || packGrams <= 0) && (!productPacks || productPacks <= 0))) {
+          unmappedIngredients.push(source.name);
+          return [];
         }
-        const scaledMeatWeight = scaledMeatDetails.reduce(
-          (sum, item) => sum + item.packGrams * item.edibleYield * item.quantity,
-          0
+        const product = products.find((candidate) =>
+          normalizeName(candidate.name) === normalizeName(productName)
         );
-        const productsInPackage: RecommendedProduct[] = scaledMeatDetails.map(({ product, quantity, why, alternative }) => ({
-          name: product.name,
-          image: product.image,
-          quantity,
-          why,
-          alternative,
-        }));
-        const price = Number(
-          scaledMeatDetails.reduce((sum, item) => sum + item.product.price * item.quantity, 0).toFixed(2)
+        if (!product || product.price <= 0) {
+          unmappedIngredients.push(source.name);
+          return [];
+        }
+        return [{
+          source: { ...source, productName, packGrams: packGrams ?? 0, productPacks: productPacks ?? 0 },
+          product,
+        }];
+      });
+
+      if (ingredients.length === 0) return null;
+      return {
+        recipe,
+        mapping,
+        ingredients,
+        unmappedIngredients,
+        category: getRecipeCategory(recipe.name),
+        score: 0,
+      };
+    })
+    .filter((match): match is RecipeMatch => match !== null)
+    .filter((match) => {
+      if (/\b(no pork|pork free|pork-free)\b/.test(dietaryPreference)) {
+        return !/pork|ribs|eisbein|wors|rashers|bacon|sosatie/i.test(
+          `${match.recipe.name} ${match.ingredients.map((ingredient) => ingredient.source.name).join(" ")}`
         );
-        if (price > budget || usedCombinations.has(key)) return;
-        usedCombinations.add(key);
+      }
+      return true;
+    })
+    .map((match) => ({
+      ...match,
+      score:
+        Math.max(0, 12 - (style.indexOf(match.category) < 0 ? 8 : style.indexOf(match.category) * 2)) +
+        Math.max(0, 8 - (occasion.indexOf(match.category) < 0 ? 6 : occasion.indexOf(match.category))) +
+        (match.recipe.timeMinutes <= 45 && event?.selectedStyle === "gas-braai" ? 3 : 0),
+    }))
+    .sort((left, right) => right.score - left.score || left.ingredients[0].product.price - right.ingredients[0].product.price);
 
-        const serves = Math.min(
-          totalPeople,
-          Math.floor(scaledMeatWeight / (targetMeatGrams / totalPeople))
-        );
-        if (serves < 1) return;
+  if (!matches.length) return [];
 
-        const productScore = scaledMeatDetails.reduce((sum, item) => sum + scoreProduct(item.product, item.category), 0);
-        const budgetFit = 24 - Math.abs((price / budget) - 0.82) * 24;
-        const coverageScore = Math.min(1, serves / totalPeople) * 50;
-        const excessRatio = Math.max(0, scaledMeatWeight / targetMeatGrams - 1);
-        const mixLabel = template.length === 1 ? "A focused, budget-led selection" : "A balanced mix of Eskort braai favourites";
+  const combinations: RecipeMatch[][] = [];
+  const rankedMatches = matches;
+  for (let first = 0; first < rankedMatches.length; first += 1) {
+    combinations.push([rankedMatches[first]]);
+    for (let second = first + 1; second < rankedMatches.length; second += 1) {
+      combinations.push([rankedMatches[first], rankedMatches[second]]);
+    }
+  }
 
-        recommendations.push({
-          id: `recommended-${templateIndex}-${selected.map((product) => product.id).join("-")}-${coverage}`,
-          name: `${event?.selectedStyle === "potjie" ? "Potjie" : "Braai"} Feast`,
-          tagline: serves === totalPeople
-            ? `${mixLabel} portioned for ${totalPeople} guests.`
-            : `${mixLabel}, estimated to serve ${serves} of ${totalPeople} guests within budget.`,
-          price,
-          serves,
-          perPerson: Math.round(price / serves),
-          badge: "Best match",
-          image: meatDetails[0].product.image,
-          bgColor: "#1a2a1a",
-          products: productsInPackage,
-          servingNote,
-          score: productScore + budgetFit + coverageScore - excessRatio * 35 + template.length * 5,
-        });
+  const candidates = combinations.flatMap((combination, index) => {
+    const quantities = new Map<string, { product: ProductItem; quantity: number; grams: number; recipes: string[] }>();
+    combination.forEach((match) => {
+      match.ingredients.forEach(({ source, product }) => {
+        const packGrams = source.packGrams ?? 0;
+        const scaledQuantity = source.grams && packGrams > 0
+          ? source.grams / match.mapping.servings * adultEquivalentGuests / combination.length / packGrams
+          : (source.productPacks ?? 0) * adultEquivalentGuests / match.mapping.servings / combination.length;
+        const quantity = Math.max(1, Math.ceil(scaledQuantity));
+        const existing = quantities.get(product.id);
+        if (existing) {
+          existing.quantity += quantity;
+          existing.recipes.push(match.recipe.name);
+        } else {
+          quantities.set(product.id, { product, quantity, grams: packGrams, recipes: [match.recipe.name] });
+        }
       });
     });
 
-    return recommendations;
-  };
+    const selected = Array.from(quantities.values());
+    const price = Number(selected.reduce((sum, item) => sum + item.product.price * item.quantity, 0).toFixed(2));
+    if (price > budget || price <= 0) return [];
 
-  const recommendations = [1, 0.8, 0.6, 0.4, 0.25].flatMap(createRecommendations);
+    const totalGrams = selected.reduce((sum, item) => sum + item.grams * item.quantity, 0);
+    const eventScore = combination.reduce((sum, match) => sum + match.score, 0);
+    const budgetScore = 30 - Math.abs(price / budget - 0.82) * 30;
+    const portionFitScore = -Math.abs(totalGrams / adultEquivalentGuests - 375) / 5;
+    const recipeDisplay: RecommendedRecipe[] = combination.map((match) => ({
+      id: match.recipe.id,
+      name: match.recipe.name,
+      image: match.recipe.image,
+      ingredientProducts: match.ingredients.map((ingredient) => ingredient.product.name),
+      unmappedIngredients: match.unmappedIngredients,
+    }));
 
-  const usedPackageNames = new Set<string>();
-  const packagePrefix = event?.selectedStyle === "potjie"
-    ? "Potjie Gathering"
-    : event?.selectedStyle === "shisa-nyama"
-      ? "Shisa Nyama Spread"
-      : event?.selectedStyle === "gas-braai"
-        ? "Easy Gas Braai"
-        : ({
-            "family-braai": "Family Braai",
-            "friends-get-together": "Friends' Braai",
-            "game-day": "Game-Day Grill",
-            birthday: "Birthday Braai",
-            wedding: "Celebration Braai",
-            corporate: "Team Braai",
-          }[event?.selectedOccasion ?? "family-braai"] ?? "Classic Braai");
-  const seenPackageCombinations = new Set<string>();
-  const distinctRecommendations = recommendations
-    .sort((a, b) => b.score - a.score || a.price - b.price)
-    .filter((recommendation) => {
-      const combination = recommendation.products
-        .map((product) => normalizeName(product.name))
-        .sort()
-        .join("|");
-      if (seenPackageCombinations.has(combination)) return false;
-      seenPackageCombinations.add(combination);
-      return true;
-    });
-  const usedProducts = new Set<string>();
-  const usedPrices = new Set<string>();
-  const selectedRecommendations: Array<typeof distinctRecommendations[number]> = [];
-  const targetDiscounts = [10, 20, 30, 40, 10, 20, 30, 40, 10, 20];
-
-  targetDiscounts.forEach((targetDiscount) => {
-    const targetPrice = budget * (1 - targetDiscount / 100);
-    const previousPackagePrice = selectedRecommendations.length > 0
-      ? selectedRecommendations[selectedRecommendations.length - 1].price
-      : Infinity;
-    const candidate = distinctRecommendations
-      .filter((recommendation) =>
-        recommendation.price < budget &&
-        recommendation.price < previousPackagePrice &&
-        !usedPrices.has(recommendation.price.toFixed(2)) &&
-        recommendation.products.every((product) => !usedProducts.has(normalizeName(product.name)))
-      )
-      .sort(
-        (a, b) =>
-          Math.abs(a.price - targetPrice) - Math.abs(b.price - targetPrice) ||
-          b.score - a.score
-      )[0];
-
-    if (!candidate) return;
-
-    selectedRecommendations.push(candidate);
-    usedPrices.add(candidate.price.toFixed(2));
-    candidate.products.forEach((product) => usedProducts.add(normalizeName(product.name)));
+    return [{
+      id: `recipe-package-${index}-${combination.map((match) => match.recipe.id).join("-")}`,
+      name: combination.length === 1
+        ? combination[0].recipe.name
+        : `${combination.length}-recipe menu`,
+      tagline: `Recipes selected for your ${event?.selectedOccasion?.replace(/-/g, " ") ?? "braai"}, scaled for ${totalPeople} guests.`,
+      price,
+      serves: totalPeople,
+      perPerson: Math.round(price / totalPeople),
+      portionPreview: totalGrams > 0
+        ? `About ${Math.round(totalGrams / adultEquivalentGuests)} g of weighed products per adult-equivalent guest, plus unit-based recipe items.`
+        : `Recipe portions scaled to ${totalPeople} guests from the published serving count.`,
+      priceTier: "Balanced" as const,
+      badge: null,
+      image: combination[0].recipe.image,
+      bgColor: "#1a2a1a",
+      products: selected.map((item) => ({
+        name: item.product.name,
+        image: item.product.image,
+        quantity: item.quantity,
+        why: `Mapped recipe ingredient for ${item.recipes.join(", ")}.`,
+      })),
+      recipes: recipeDisplay,
+      servingNote: "Package quantities include only recipe ingredients that match an Eskort product in the existing catalog. Other recipe ingredients are not included.",
+      score: eventScore + budgetScore + portionFitScore,
+    }];
   });
 
-  const sortedPrices = selectedRecommendations
-    .map((recommendation) => recommendation.price)
-    .sort((a, b) => a - b);
-  const lowPriceCutoff = sortedPrices[Math.floor((sortedPrices.length - 1) / 3)] ?? 0;
-  const highPriceCutoff = sortedPrices[Math.ceil(((sortedPrices.length - 1) * 2) / 3)] ?? 0;
+  const distinctCandidates = candidates
+    .sort((left, right) => right.score - left.score || left.price - right.price)
+    .filter((candidate, index, all) => all.findIndex((other) =>
+      other.recipes.map((recipe) => recipe.id).sort().join("|") === candidate.recipes.map((recipe) => recipe.id).sort().join("|")
+    ) === index);
 
-  return selectedRecommendations.map(({ score: _score, ...recommendation }, index) => {
-      const leadProduct = recommendation.products[0]?.name ?? "Braai Selection";
-      const leadLabel = leadProduct
-        .replace(/\s*[|,].*$/, "")
-        .replace(/^(?:eskort\s+|fresh\s+)/i, "")
-        .trim()
-        .split(/\s+/)
-        .slice(0, 4)
-        .join(" ");
-      let packageName = `${packagePrefix}: ${leadLabel || "Host's Choice"}`;
+  type Candidate = (typeof distinctCandidates)[number];
+  let bestSelection: Candidate[] = [];
+  let bestSelectionScore = Number.NEGATIVE_INFINITY;
 
-      if (usedPackageNames.has(normalizeName(packageName))) {
-        const secondProduct = recommendation.products[1]?.name
-          .replace(/^(?:eskort\s+|fresh\s+)/i, "")
-          .split(/\s+/)
-          .slice(0, 3)
-          .join(" ");
-        packageName = `${packageName} with ${secondProduct || `Option ${index + 1}`}`;
+  const selectDistinctPackages = (
+    recipeIndex: number,
+    selected: Candidate[],
+    usedRecipeIds: Set<string>,
+    usedPrices: Set<string>,
+    score: number
+  ) => {
+    if (recipeIndex >= rankedMatches.length) {
+      const coveredRecipes = usedRecipeIds.size;
+      const bestCoveredRecipes = bestSelection.reduce(
+        (count, candidate) => count + candidate.recipes.length,
+        0
+      );
+      if (
+        selected.length > bestSelection.length ||
+        (selected.length === bestSelection.length && coveredRecipes > bestCoveredRecipes) ||
+        (selected.length === bestSelection.length &&
+          coveredRecipes === bestCoveredRecipes &&
+          score > bestSelectionScore)
+      ) {
+        bestSelection = [...selected];
+        bestSelectionScore = score;
+      }
+      return;
+    }
+
+    const currentRecipeId = rankedMatches[recipeIndex].recipe.id;
+    if (usedRecipeIds.has(currentRecipeId)) {
+      selectDistinctPackages(recipeIndex + 1, selected, usedRecipeIds, usedPrices, score);
+      return;
+    }
+
+    selectDistinctPackages(recipeIndex + 1, selected, usedRecipeIds, usedPrices, score);
+
+    distinctCandidates.forEach((candidate) => {
+      const candidateRecipeIds = candidate.recipes.map((recipe) => recipe.id);
+      const firstRecipeIndex = rankedMatches.findIndex((match) => match.recipe.id === candidateRecipeIds[0]);
+      const priceKey = candidate.price.toFixed(2);
+      if (
+        firstRecipeIndex !== recipeIndex ||
+        usedPrices.has(priceKey) ||
+        candidateRecipeIds.some((recipeId) => usedRecipeIds.has(recipeId))
+      ) {
+        return;
       }
 
-      while (usedPackageNames.has(normalizeName(packageName))) {
-        packageName = `${packageName} Option ${index + 1}`;
-      }
-      usedPackageNames.add(normalizeName(packageName));
-
-      return {
-        ...recommendation,
-        name: index === 0 ? `Top Pick - ${packageName}` : packageName,
-        badge: `${Math.round((1 - recommendation.price / budget) * 100)}% under budget`,
-        priceTier: lowPriceCutoff === highPriceCutoff
-          ? "Balanced"
-          : recommendation.price <= lowPriceCutoff
-            ? "Value"
-            : recommendation.price >= highPriceCutoff
-              ? "Premium"
-              : "Balanced",
-      };
+      const nextRecipeIds = new Set(usedRecipeIds);
+      candidateRecipeIds.forEach((recipeId) => nextRecipeIds.add(recipeId));
+      const nextPrices = new Set(usedPrices);
+      nextPrices.add(priceKey);
+      selectDistinctPackages(
+        recipeIndex + 1,
+        [...selected, candidate],
+        nextRecipeIds,
+        nextPrices,
+        score + candidate.score
+      );
     });
+  };
+
+  selectDistinctPackages(0, [], new Set<string>(), new Set<string>(), 0);
+  const uniqueCandidates = bestSelection
+    .sort((left, right) => right.score - left.score || left.price - right.price)
+    .slice(0, 4);
+
+  const prices = uniqueCandidates.map((candidate) => candidate.price).sort((left, right) => left - right);
+  const lowPriceCutoff = prices[Math.floor((prices.length - 1) / 3)] ?? 0;
+  const highPriceCutoff = prices[Math.ceil(((prices.length - 1) * 2) / 3)] ?? 0;
+  const usedNames = new Set<string>();
+
+  return uniqueCandidates.map(({ score: _score, ...candidate }, index) => {
+    const name = index === 0 ? `Top Pick - ${candidate.name}` : candidate.name;
+    const uniqueName = usedNames.has(normalizeName(name)) ? `${name} ${index + 1}` : name;
+    usedNames.add(normalizeName(uniqueName));
+    return {
+      ...candidate,
+      name: uniqueName,
+      badge: `${Math.round((1 - candidate.price / budget) * 100)}% under budget`,
+      priceTier: lowPriceCutoff === highPriceCutoff
+        ? "Balanced"
+        : candidate.price <= lowPriceCutoff
+          ? "Value"
+          : candidate.price >= highPriceCutoff
+            ? "Premium"
+            : "Balanced",
+    };
+  });
 };
 
 export default function RecommendedPackagesPage() {
@@ -560,6 +562,9 @@ export default function RecommendedPackagesPage() {
   const [detailsPackageId, setDetailsPackageId] = useState<string | null>(null);
   const [eventDetails, setEventDetails] = useState<EventDetails | null>(null);
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [recipes, setRecipes] = useState<RecipeItem[]>([]);
+  const [recipeMappings, setRecipeMappings] = useState<RecipeMapping[]>([]);
+  const [recommendationError, setRecommendationError] = useState("");
   const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
@@ -580,14 +585,26 @@ export default function RecommendedPackagesPage() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadProducts = async () => {
-      const items = await getProductCatalog();
+    const loadCatalog = async () => {
+      const [items, availableRecipes, mappings] = await Promise.all([
+        getProductCatalog(),
+        getRecipes(),
+        getRecipeMappings(),
+      ]);
       if (isMounted) {
         setProducts(items);
+        setRecipes(availableRecipes);
+        setRecipeMappings(mappings);
       }
     };
 
-    loadProducts();
+    void loadCatalog().catch((error: unknown) => {
+      if (isMounted) {
+        setRecommendationError(
+          error instanceof Error ? error.message : "Could not load recipe recommendations."
+        );
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -595,8 +612,8 @@ export default function RecommendedPackagesPage() {
   }, []);
 
   const packages = useMemo(
-    () => buildRecommendedPackages(products, eventDetails),
-    [products, eventDetails]
+    () => buildRecommendedPackages(products, recipes, recipeMappings, eventDetails),
+    [products, recipes, recipeMappings, eventDetails]
   );
   const detailsPackage = packages.find((pkg) => pkg.id === detailsPackageId);
 
@@ -683,7 +700,7 @@ export default function RecommendedPackagesPage() {
 
   return (
     <div className="min-h-screen bg-eskort-cream-light">
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <Link
           href="/event-details"
           className="inline-flex items-center gap-1 text-eskort-red text-sm font-semibold mb-4 hover:opacity-80 transition-opacity"
@@ -718,19 +735,23 @@ export default function RecommendedPackagesPage() {
 
         <BudgetTracker budget={budget} spent={Math.round(cart)} />
         <p className="mb-6 text-xs text-gray-500">
-          Portions target about 350 g of raw meat per adult-equivalent guest. Product prices are estimates because the price feed is not linked to individual product SKUs; serving suggestions are not included in the package total.
+          Recipe quantities are scaled from the published servings. Product prices are estimates because the price feed is not linked to individual product SKUs; ingredients without a matching Eskort product are omitted and flagged.
         </p>
 
-        {products.length > 0 && packages.length === 0 ? (
+        {recommendationError ? (
+          <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+            {recommendationError}
+          </div>
+        ) : products.length > 0 && recipes.length > 0 && packages.length === 0 ? (
           <div className="mb-8 rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
             No package could be built within this budget using the current product selection and price estimates. Try increasing the budget, reducing the guest count, or building your own braai.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-8 items-stretch">
             {visiblePackages.map((pkg) => (
             <div
               key={pkg.id}
-              className="h-[430px] min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm flex flex-col"
+              className="flex h-[420px] min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
             >
               <div className="relative h-40 bg-gray-200 shrink-0">
                 {pkg.badge && (
@@ -745,38 +766,49 @@ export default function RecommendedPackagesPage() {
                 />
               </div>
 
-              <div className="min-h-0 flex-1 p-3 flex flex-col">
-                <h3 className="whitespace-normal font-bold text-sm text-[#1a1a1a] leading-snug break-words">
+              <div className="flex min-h-0 flex-1 flex-col p-3">
+                <h3
+                  className="h-10 shrink-0 overflow-hidden font-bold text-sm leading-snug text-[#1a1a1a] break-words"
+                  style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}
+                >
                   {pkg.name}
                 </h3>
-                <p className="whitespace-normal text-gray-500 text-[10px] mt-1 leading-snug break-words">{pkg.tagline}</p>
+                <p
+                  className="mt-1 h-8 shrink-0 overflow-hidden text-[10px] leading-snug text-gray-500 break-words"
+                  style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}
+                >
+                  {pkg.tagline}
+                </p>
 
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <div className={`font-bold text-base ${pkg.priceTier === "Premium" ? "text-[#1a1a1a]" : pkg.priceTier === "Value" ? "text-green-700" : "text-[#d52027]"}`}>
+                <div className="mt-3 flex shrink-0 items-center justify-between gap-2">
+                  <div className={`min-w-0 font-bold text-base ${pkg.priceTier === "Premium" ? "text-[#1a1a1a]" : pkg.priceTier === "Value" ? "text-green-700" : "text-[#d52027]"}`}>
                     R{pkg.price.toFixed(2)}
-                    <span className={`ml-1.5 align-middle rounded px-1.5 py-0.5 text-[9px] uppercase ${pkg.priceTier === "Premium" ? "bg-[#1a1a1a] text-white" : pkg.priceTier === "Value" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                    <span className={`ml-1.5 inline-block rounded px-1.5 py-0.5 text-[9px] uppercase ${pkg.priceTier === "Premium" ? "bg-[#1a1a1a] text-white" : pkg.priceTier === "Value" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                       {pkg.priceTier}
                     </span>
                   </div>
-                  <span className="text-right text-gray-500 text-[10px]">
+                  <span className="shrink-0 text-right text-gray-500 text-[10px]">
                     serves {pkg.serves}
                   </span>
                 </div>
 
-                <div className="mt-3 flex-1 min-h-0 flex items-center">
-                  <p className="whitespace-normal text-xs leading-relaxed text-gray-600">
-                    Includes {pkg.products.length} items. Open the package to see quantities, recommendations and serving ideas.
+                <div className="mt-3 flex min-h-0 flex-1 items-start">
+                  <p
+                    className="max-h-12 overflow-hidden text-xs leading-relaxed text-gray-600"
+                    style={{ display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}
+                  >
+                    {pkg.recipes.length} recipe{pkg.recipes.length === 1 ? "" : "s"} · {pkg.portionPreview}
                   </p>
                 </div>
 
-                <div className="shrink-0 pt-2 flex items-center justify-between text-[10px] text-gray-500">
+                <div className="flex shrink-0 items-center justify-between pt-2 text-[10px] text-gray-500">
                   <span>R{pkg.perPerson}/person</span>
                   <span>{pkg.serves} guests</span>
                 </div>
 
                 <button
                   onClick={() => setDetailsPackageId(pkg.id)}
-                  className="w-full mt-3 shrink-0 btn-red py-2.5 text-xs leading-tight"
+                  className="mt-3 w-full shrink-0 btn-red py-2.5 text-xs leading-tight"
                 >
                   View Package
                 </button>
@@ -828,6 +860,28 @@ export default function RecommendedPackagesPage() {
                 <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-2xl font-bold text-[#d52027]">R{detailsPackage.price}</p>
                   <p className="whitespace-normal text-sm text-gray-500">Serves {detailsPackage.serves} · R{detailsPackage.perPerson}/person</p>
+                </div>
+
+                <div className="mt-4 rounded-md bg-[#f4f3f1] p-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-[#1a1a1a]">Recipes this package serves</h3>
+                  <p className="mt-1 text-sm text-gray-600">{detailsPackage.portionPreview}</p>
+                  <ul className="mt-3 space-y-3">
+                    {detailsPackage.recipes.map((recipe) => (
+                      <li key={recipe.id} className="min-w-0">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-800">{recipe.name}</p>
+                          <p className="mt-1 text-xs text-gray-600">
+                            Matched Eskort ingredient{recipe.ingredientProducts.length === 1 ? "" : "s"}: {recipe.ingredientProducts.join(", ")}
+                          </p>
+                          {recipe.unmappedIngredients.length > 0 && (
+                            <p className="mt-1 text-xs text-amber-800">
+                              Not in the Eskort catalog: {recipe.unmappedIngredients.join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
                 <div className="mt-5">

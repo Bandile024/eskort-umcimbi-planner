@@ -1,0 +1,242 @@
+[
+  {
+    "recipeName": "BBQ Ribs with Chakalaka Bread Pudding and Green Salad",
+    "sourceUrl": "https://eskort.com/recipes/bbq-ribs-with-chakalaka-bread-pudding-and-green-salad/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "2 x 750 g Eskort BBQ Ribs",
+        "grams": 1500,
+        "productName": "BBQ Spare Ribs",
+        "packGrams": 750
+      }
+    ],
+    "unmappedIngredients": [
+      "Crusty bread",
+      "Eggs",
+      "Cream",
+      "Spicy chakalaka",
+      "Cheddar",
+      "Mixed lettuce",
+      "Wild rocket",
+      "Watercress",
+      "Plain yoghurt",
+      "Granadilla pulp",
+      "Lemon"
+    ]
+  },
+  {
+    "recipeName": "Braaied Spare Ribs with Crispy Golden Potatoes",
+    "sourceUrl": "https://eskort.com/recipes/braaied-spare-ribs-with-crispy-golden-potatoes/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "2 x 1 kg Eskort Spare Ribs",
+        "grams": 2000,
+        "productName": "Pork Spare Ribs",
+        "packGrams": 1000
+      }
+    ],
+    "unmappedIngredients": [
+      "Potatoes",
+      "Olive oil",
+      "Fresh thyme",
+      "Garlic",
+      "Paprika",
+      "Ginger",
+      "Ground cumin",
+      "Mustard powder",
+      "Fresh herbs",
+      "Salt",
+      "Pepper",
+      "Lemon"
+    ]
+  },
+  {
+    "recipeName": "Loin Ribs with Roasted Onions on Creamy Cold Mash",
+    "sourceUrl": "https://eskort.com/recipes/loin-ribs-with-roasted-onions-on-creamy-cold-mash/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "2 x 750 g Eskort Marinated Loin Ribs",
+        "grams": 1500,
+        "productName": "Marinated Loin Ribs",
+        "packGrams": 750
+      }
+    ],
+    "unmappedIngredients": [
+      "Potatoes",
+      "Olive oil",
+      "Butter",
+      "Plain yoghurt",
+      "Salt",
+      "Pepper",
+      "Onions",
+      "Rosemary",
+      "Garlic",
+      "Tomato puree",
+      "Water"
+    ]
+  },
+  {
+    "recipeName": "Marinated Loin Ribs With Stuffed Spinach & Corn Bread",
+    "sourceUrl": "https://eskort.com/recipes/marinated-loin-ribs-with-stuffed-spinach-corn-bread/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "750 g Eskort Marinated Loin Ribs",
+        "grams": 750,
+        "productName": "Marinated Loin Ribs",
+        "packGrams": 750
+      },
+      {
+        "name": "200 g Eskort Rindless Streaky Bacon",
+        "grams": 200
+      }
+    ],
+    "unmappedIngredients": [
+      "Eskort Secret Braai Spice or BBQ spice",
+      "Spinach",
+      "Cottage cheese",
+      "Mozzarella",
+      "Chives",
+      "Sundried tomatoes",
+      "Bread crumbs",
+      "Whole grain mustard",
+      "Olive oil",
+      "Self-raising flour",
+      "Sweetcorn",
+      "Eggs",
+      "Buttermilk or inkomazi",
+      "Garlic",
+      "Feta",
+      "Sage",
+      "Cayenne pepper",
+      "Salt"
+    ]
+  },
+  {
+    "recipeName": "BBQ Ribs with Sweet & Sour Onion Rings",
+    "sourceUrl": "https://eskort.com/recipes/bbq-ribs-with-sweet-sour-onion-rings/",
+    "servings": 6,
+    "ingredients": [
+      {
+        "name": "2 kg Eskort BBQ Marinated Ribs",
+        "grams": 2000,
+        "productName": "BBQ Marinated Mini Ribs",
+        "packGrams": 2000
+      }
+    ],
+    "unmappedIngredients": [
+      "Red onions",
+      "Salt",
+      "Flour",
+      "BBQ spice",
+      "Oil",
+      "Pineapple juice",
+      "Light brown sugar",
+      "Tomato sauce",
+      "Sweet chilli sauce",
+      "Red wine vinegar"
+    ]
+  },
+  {
+    "recipeName": "Braai Espetada with Garlic Pasta Salad",
+    "sourceUrl": "https://eskort.com/recipes/braai-espetada-with-garlic-pasta-salad/",
+    "servings": 5,
+    "ingredients": [
+      {
+        "name": "1 pack Eskort Espetada",
+        "productName": "Fillet Espetada Sweet & Sour",
+        "productPacks": 1
+      }
+    ],
+    "unmappedIngredients": [
+      "Garlic",
+      "Pasta",
+      "Lemon",
+      "Sour cream",
+      "Black pepper",
+      "Chilli flakes",
+      "Avo oil",
+      "Fresh herbs",
+      "Salt"
+    ]
+  },
+  {
+    "recipeName": "On The Braai: Mini Eisbeins & Cauliflower Salad",
+    "sourceUrl": "https://eskort.com/recipes/on-the-braai-mini-eisbeins-cauliflower-salad/",
+    "servings": 6,
+    "ingredients": [
+      {
+        "name": "6 Eskort Mini Eisbeins",
+        "productName": "Smoked Mini Eisbein",
+        "productPacks": 1
+      }
+    ],
+    "unmappedIngredients": [
+      "Eskort Secret Rib Sauce",
+      "Eskort Secret BBQ spice",
+      "Rum",
+      "Thyme",
+      "Garlic",
+      "Cauliflower",
+      "Olive oil",
+      "Butter",
+      "Turmeric",
+      "Cayenne",
+      "Curry powder",
+      "Salt",
+      "Nkomazi",
+      "Baked beans"
+    ]
+  },
+  {
+    "recipeName": "Prego Kebab on Fried Flatbread with Spiced Butter & Red Onion Yoghurt Dressing",
+    "sourceUrl": "https://eskort.com/recipes/prego-kebab-on-fried-flatbread-with-spiced-butter-red-onion-yoghurt-dressing/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "Prego kebabs",
+        "productName": "Prego Sosaties",
+        "productPacks": 1
+      }
+    ],
+    "unmappedIngredients": [
+      "Flatbreads",
+      "Butter",
+      "Red onion yoghurt dressing",
+      "Spiced butter",
+      "Micro herbs"
+    ]
+  },
+  {
+    "recipeName": "Sweet & Sticky Braai Chops with Fire-Baked Beer Bread",
+    "sourceUrl": "https://eskort.com/recipes/sweet-sticky-braai-chops-with-fire-baked-beer-bread/",
+    "servings": 4,
+    "ingredients": [
+      {
+        "name": "1 rack Eskort Loin Chops",
+        "productName": "Pork Loin Chops",
+        "productPacks": 1
+      }
+    ],
+    "unmappedIngredients": [
+      "Olive oil",
+      "Coarse salt",
+      "Sweet chilli sauce",
+      "Balsamic vinegar",
+      "Honey",
+      "Chilli flakes",
+      "Ground cumin",
+      "Black pepper",
+      "Bread flour",
+      "Cake flour",
+      "Baking powder",
+      "Beer",
+      "Butter",
+      "Cheese",
+      "Jam"
+    ]
+  }
+]
