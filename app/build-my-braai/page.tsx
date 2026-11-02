@@ -656,6 +656,21 @@ export default function BuildMyBraaiPage() {
                 >
                   Checkout →
                 </button>
+                <a
+                  href="https://youtu.be/2LoQSDB9Gr4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#25D366] py-2.5 text-base font-bold tracking-widest text-white transition-colors hover:bg-[#1ebe5d]"
+                >
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5 fill-current"
+                  >
+                    <path d="M12.04 2a9.93 9.93 0 0 0-8.47 15.12L2.5 22l5.04-1.32A9.93 9.93 0 1 0 12.04 2Zm0 18.1a8.12 8.12 0 0 1-4.14-1.13l-.3-.18-2.99.78.8-2.91-.2-.3a8.12 8.12 0 1 1 6.83 3.74Zm4.46-6.08c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.95-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.01-.37.1-.49.1-.1.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.4h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.1.15 1.52.09.46-.07 1.43-.58 1.63-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z" />
+                  </svg>
+                  Share to WhatsApp
+                </a>
               </div>
             </aside>
       </div>
