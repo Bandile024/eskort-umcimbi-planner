@@ -72,7 +72,6 @@ type RecommendedPackage = {
   serves: number;
   perPerson: number;
   portionPreview: string;
-  priceTier: "Value" | "Balanced" | "Premium";
   badge: string | null;
   image: string;
   bgColor: string;
@@ -538,7 +537,6 @@ const buildRecommendedPackages = (
       portionPreview: p.totalGrams > 0
         ? `About ${Math.round(p.totalGrams / adultEquivalentGuests)} g of weighed products per adult-equivalent guest.`
         : `Recipe portions scaled to ${totalPeople} guests.`,
-      priceTier: "Balanced" as const,
       badge: null,
       image: p.recipes[0].recipe.image,
       bgColor: "#1a2a1a",
@@ -556,21 +554,10 @@ const buildRecommendedPackages = (
     };
   });
 
-  const prices = mappedPackages.map((p) => p.price).sort((a, b) => a - b);
-  const lowCutoff = prices[Math.floor((prices.length - 1) / 3)] ?? 0;
-  const highCutoff = prices[Math.ceil(((prices.length - 1) * 2) / 3)] ?? 0;
-
   return mappedPackages.map((pkg, index) => ({
     ...pkg,
     name: index === 0 ? `Top Pick - ${pkg.name}` : pkg.name,
     badge: `${Math.round((1 - pkg.price / budget) * 100)}% under budget`,
-    priceTier: lowCutoff === highCutoff
-      ? "Balanced"
-      : pkg.price <= lowCutoff
-        ? "Value"
-        : pkg.price >= highCutoff
-          ? "Premium"
-          : "Balanced",
   }));
 };
 
@@ -764,7 +751,7 @@ export default function RecommendedPackagesPage() {
             No package could be built within this budget using the current product selection and price estimates. Try increasing the budget, reducing the guest count, or building your own braai.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-8 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8 items-stretch">
             {visiblePackages.map((pkg) => (
             <div
               key={pkg.id}
@@ -798,11 +785,8 @@ export default function RecommendedPackagesPage() {
                 </p>
 
                 <div className="mt-3 flex shrink-0 items-center justify-between gap-2">
-                  <div className={`min-w-0 font-bold text-base ${pkg.priceTier === "Premium" ? "text-[#1a1a1a]" : pkg.priceTier === "Value" ? "text-green-700" : "text-[#d52027]"}`}>
+                  <div className="min-w-0 font-bold text-base text-[#1a1a1a]">
                     R{pkg.price.toFixed(2)}
-                    <span className={`ml-1.5 inline-block rounded px-1.5 py-0.5 text-[9px] uppercase ${pkg.priceTier === "Premium" ? "bg-[#1a1a1a] text-white" : pkg.priceTier === "Value" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                      {pkg.priceTier}
-                    </span>
                   </div>
                   <span className="shrink-0 text-right text-gray-500 text-[10px]">
                     serves {pkg.serves}
