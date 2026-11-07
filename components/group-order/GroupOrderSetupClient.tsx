@@ -125,12 +125,6 @@ export default function GroupOrderSetupClient({
             <div className="h-14 animate-pulse rounded-lg bg-gray-800" />
             <div className="h-14 animate-pulse rounded-lg bg-gray-800" />
           </div>
-        ) : cartItems.length === 0 ? (
-          <div className="mt-6 rounded-lg border border-dashed border-gray-600 p-6 text-center">
-            <p className="font-semibold text-white">Your cart is empty.</p>
-            <p className="mt-1 text-sm text-gray-400">Add products to your braai before setting up a group order.</p>
-            <Link href="/build-my-braai" className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-eskort-red px-5 font-bold text-white">Build your braai</Link>
-          </div>
         ) : order ? (
           <div className="mt-6 space-y-4">
             <p role="status" className="rounded-lg bg-green-900/30 p-4 font-semibold text-green-200">Group order created.</p>
@@ -144,6 +138,12 @@ export default function GroupOrderSetupClient({
               <Link href={`/group/${order.token}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-eskort-red px-4 font-bold text-white"><Eye size={17} />Preview group order</Link>
             </div>
             <Link href={`/my-orders/group/${order.id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-eskort-yellow hover:underline">Open organizer dashboard</Link>
+          </div>
+        ) : cartItems.length === 0 ? (
+          <div className="mt-6 rounded-lg border border-dashed border-gray-600 p-6 text-center">
+            <p className="font-semibold text-white">Your cart is empty.</p>
+            <p className="mt-1 text-sm text-gray-400">Add products to your braai before setting up a group order.</p>
+            <Link href="/build-my-braai" className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-eskort-red px-5 font-bold text-white">Build your braai</Link>
           </div>
         ) : (
           <form onSubmit={submit} className="mt-6 space-y-4">
