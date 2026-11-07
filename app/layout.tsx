@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import { AuthProvider } from "@/lib/auth-context";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Eskort Umcimbi Planner",
@@ -25,10 +24,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-eskort-dark-bg text-white antialiased">
-        <AuthProvider>
-          <Navbar />
-          <main>{children}</main>
-        </AuthProvider>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPayFastGroupContributionCheckout } from "@/lib/payfast";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getGroupOrderPublicOrigin } from "@/lib/groupOrderUtils";
 import type {
   Contribution,
   DeliveryAddress,
@@ -11,6 +12,7 @@ import type {
   GroupOrderStatus,
   Notification,
   PublicContribution,
+  PublicGroupOrder,
 } from "@/types/groupOrder";
 
 type Payload = Record<string, unknown>;
@@ -29,6 +31,12 @@ function stringValue(payload: Payload, key: string): string {
   const value = payload[key];
   if (typeof value !== "string" || !value.trim()) throw new RequestError(`Missing ${key}.`);
   return value.trim();
+}
+
+function publicTokenValue(payload: Payload): string {
+  const token = stringValue(payload, "token");
+  if (!/^[a-f0-9]{32}$/i.test(token)) throw new RequestError("Link not valid.", 404);
+  return token;
 }
 
 function numberValue(payload: Payload, key: string): number {
@@ -80,6 +88,30 @@ function mapOrder(row: Record<string, unknown>): GroupOrder {
       : undefined,
     refundsProcessed: Boolean(row.refunds_processed),
     createdAt: String(row.created_at),
+  };
+}
+
+function mapPublicOrder(row: Record<string, unknown>): PublicGroupOrder {
+  const dbItems = Array.isArray(row.group_order_items) ? row.group_order_items as Record<string, unknown>[] : [];
+  const items = dbItems
+    .sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0))
+    .map((item) => ({
+      name: String(item.product_name),
+      imageUrl: String(item.image_url || "🥩"),
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unit_price),
+      lineTotal: Number(item.line_total),
+    }));
+  const deadline = String(row.deadline);
+  return {
+    name: String(row.name),
+    organizerName: String(row.organizer_name),
+    items,
+    total: Number(row.total),
+    amountPaid: Number(row.amount_paid),
+    deadline: validDate(deadline) ? new Date(`${deadline}T00:00:00.000Z`).toISOString() : deadline,
+    status: row.status as GroupOrderStatus,
+    fulfilmentMethod: row.fulfilment_method as FulfilmentMethod | null,
   };
 }
 
@@ -136,16 +168,29 @@ async function getOrderById(db: ReturnType<typeof createSupabaseAdminClient>, id
   return data ? mapOrder(data as Record<string, unknown>) : null;
 }
 
-async function getOrderByToken(db: ReturnType<typeof createSupabaseAdminClient>, token: string): Promise<GroupOrder | null> {
-  const { error: expiryError } = await db.rpc("expire_group_orders");
-  if (expiryError) throw new RequestError("Could not update expired group orders.", 500);
+async function getOrderIdByToken(db: ReturnType<typeof createSupabaseAdminClient>, token: string): Promise<string | null> {
   const { data, error } = await db
     .from("group_orders")
-    .select("*, group_order_items(*)")
+    .select("id")
     .eq("token", token)
     .maybeSingle();
   if (error) throw new RequestError("Could not load the group order.", 500);
-  return data ? mapOrder(data as Record<string, unknown>) : null;
+  return data ? String(data.id) : null;
+}
+
+async function getPublicOrderByToken(
+  db: ReturnType<typeof createSupabaseAdminClient>,
+  token: string,
+): Promise<PublicGroupOrder | null> {
+  const { error: expiryError } = await db.rpc("expire_group_order_by_token", { p_group_token: token });
+  if (expiryError) throw new RequestError("Could not update expired group orders.", 500);
+  const { data, error } = await db
+    .from("group_orders")
+    .select("name, organizer_name, total, amount_paid, deadline, status, fulfilment_method, group_order_items(product_name, image_url, quantity, unit_price, line_total, position)")
+    .eq("token", token)
+    .maybeSingle();
+  if (error) throw new RequestError("Could not load the group order.", 500);
+  return data ? mapPublicOrder(data as Record<string, unknown>) : null;
 }
 
 async function requireOrganizerOrAdmin(db: ReturnType<typeof createSupabaseAdminClient>, orderId: string, userId: string) {
@@ -186,6 +231,11 @@ async function handleAction(action: string, payload: Payload, request: Request):
   switch (action) {
     case "create": {
       const user = await requireUser();
+      try {
+        getGroupOrderPublicOrigin(new URL(request.url).origin);
+      } catch (issue) {
+        throw new RequestError(issue instanceof Error ? issue.message : "Group-order public domain is not configured.", 503);
+      }
       const name = stringValue(payload, "name");
       const deadline = stringValue(payload, "deadline");
       if (!validDate(deadline)) throw new RequestError("Choose a valid payment deadline.");
@@ -212,7 +262,7 @@ async function handleAction(action: string, payload: Payload, request: Request):
       return created;
     }
     case "getByToken":
-      return getOrderByToken(db, stringValue(payload, "token"));
+      return getPublicOrderByToken(db, publicTokenValue(payload));
     case "getById": {
       const user = await requireUser();
       const id = stringValue(payload, "id");
@@ -232,30 +282,30 @@ async function handleAction(action: string, payload: Payload, request: Request):
       return (data ?? []).map((row) => mapContribution(row as Record<string, unknown>));
     }
     case "listPublicContributions": {
-      const order = await getOrderByToken(db, stringValue(payload, "token"));
-      if (!order) throw new RequestError("Link not valid.", 404);
+      const orderId = await getOrderIdByToken(db, publicTokenValue(payload));
+      if (!orderId) throw new RequestError("Link not valid.", 404);
       const { data, error } = await db
         .from("group_contributions")
-        .select("id, name, surname, amount, status, created_at")
-        .eq("group_order_id", order.id)
+        .select("name, surname, amount, created_at")
+        .eq("group_order_id", orderId)
         .eq("status", "paid")
         .order("created_at", { ascending: false });
       if (error) throw new RequestError("Could not load contributors.", 500);
       return (data ?? []).map((row) => ({
-        id: String(row.id),
         name: String(row.name),
         surname: String(row.surname),
         amount: Number(row.amount),
-        status: row.status as PublicContribution["status"],
         createdAt: String(row.created_at),
       }));
     }
     case "startContribution": {
-      const token = stringValue(payload, "token");
+      const token = publicTokenValue(payload);
       const name = stringValue(payload, "name");
       const surname = stringValue(payload, "surname");
       const amount = numberValue(payload, "amount");
       const contributionId = crypto.randomUUID();
+      const { error: expiryError } = await db.rpc("expire_group_order_by_token", { p_group_token: token });
+      if (expiryError) throw new RequestError("Could not check the group-order deadline.", 500);
       const { error } = await db.rpc("create_group_contribution_payment", {
         p_group_token: token,
         p_contribution_id: contributionId,
@@ -265,14 +315,11 @@ async function handleAction(action: string, payload: Payload, request: Request):
       });
       if (error) throw new RequestError(error.message, 400);
 
-      const order = await getOrderByToken(db, token);
-      if (!order) throw new RequestError("This group order could not be found.", 404);
       try {
         return {
           contributionId,
           ...createPayFastGroupContributionCheckout({
             contributionId,
-            groupOrderId: order.id,
             token,
             amount,
             customer: { name_first: name, name_last: surname },
@@ -292,20 +339,22 @@ async function handleAction(action: string, payload: Payload, request: Request):
       }
     }
     case "contributionStatus": {
-      const token = stringValue(payload, "token");
+      const token = publicTokenValue(payload);
       const id = stringValue(payload, "contributionId");
-      const order = await getOrderByToken(db, token);
-      if (!order) throw new RequestError("Link not valid.", 404);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+        throw new RequestError("Contribution not found.", 404);
+      }
+      const orderId = await getOrderIdByToken(db, token);
+      if (!orderId) throw new RequestError("Link not valid.", 404);
       const { data, error } = await db
         .from("group_contributions")
-        .select("id, name, amount, status, created_at")
+        .select("name, amount, status, created_at")
         .eq("id", id)
-        .eq("group_order_id", order.id)
+        .eq("group_order_id", orderId)
         .maybeSingle();
       if (error) throw new RequestError("Could not check payment status.", 500);
       if (!data) throw new RequestError("Contribution not found.", 404);
       return {
-        id: String(data.id),
         name: String(data.name),
         amount: Number(data.amount),
         status: data.status as Contribution["status"],
@@ -426,11 +475,18 @@ export async function POST(request: Request) {
       throw new RequestError("Invalid group-order request.");
     }
     const data = await handleAction(body.action, body.payload as Payload, request);
-    return NextResponse.json({ data });
+    return NextResponse.json({ data }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
     if (status >= 500) console.error("Group-order API error:", error);
-    const message = error instanceof Error ? error.message : "Group-order request failed.";
-    return NextResponse.json({ error: message }, { status });
+    const message = status === 503 && error instanceof RequestError
+      ? error.message
+      : status >= 500
+      ? "Group-order request failed. Please try again."
+      : error instanceof Error ? error.message : "Group-order request failed.";
+    return NextResponse.json({ error: message }, {
+      status,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   }
 }

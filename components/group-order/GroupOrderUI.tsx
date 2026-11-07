@@ -1,8 +1,15 @@
 import Link from "next/link";
-import type { GroupOrder, PublicContribution } from "@/types/groupOrder";
+import type { GroupOrder, GroupOrderItem, GroupOrderStatus, PublicContribution } from "@/types/groupOrder";
 import { deadlineLabel, formatDateZA, formatZAR, remainingBalance } from "@/lib/groupOrderUtils";
 
-export function GroupOrderSummary({ order }: { order: GroupOrder }) {
+type SummaryOrder = {
+  items: Array<Pick<GroupOrderItem, "name" | "imageUrl" | "quantity" | "unitPrice" | "lineTotal">>;
+  total: number;
+};
+
+type ProgressOrder = Pick<GroupOrder, "amountPaid" | "total">;
+
+export function GroupOrderSummary({ order }: { order: SummaryOrder }) {
   return (
     <section className="rounded-xl border border-gray-700 bg-eskort-dark-card p-4 sm:p-6">
       <h2 className="font-display text-2xl text-white sm:text-3xl">ORDER SUMMARY</h2>
@@ -17,8 +24,8 @@ export function GroupOrderSummary({ order }: { order: GroupOrder }) {
             </tr>
           </thead>
           <tbody>
-            {order.items.map((item) => (
-              <tr key={item.id} className="border-b border-gray-800 text-sm">
+            {order.items.map((item, index) => (
+              <tr key={`${item.name}-${index}`} className="border-b border-gray-800 text-sm">
                 <td className="py-3 pr-4 text-white">
                   <span className="mr-2" aria-hidden="true">
                     {item.imageUrl.startsWith("http") ? "🥩" : item.imageUrl}
@@ -41,7 +48,7 @@ export function GroupOrderSummary({ order }: { order: GroupOrder }) {
   );
 }
 
-export function ContributionProgress({ order }: { order: GroupOrder }) {
+export function ContributionProgress({ order }: { order: ProgressOrder }) {
   const balance = remainingBalance(order);
   const percent = order.total > 0 ? Math.min(100, (order.amountPaid / order.total) * 100) : 0;
   return (
@@ -68,8 +75,8 @@ export function ContributorsList({ contributions }: { contributions: PublicContr
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-gray-700">
-          {contributions.map((contribution) => (
-            <li key={contribution.id} className="flex items-start justify-between gap-3 py-3">
+          {contributions.map((contribution, index) => (
+            <li key={`${contribution.createdAt}-${index}`} className="flex items-start justify-between gap-3 py-3">
               <div>
                 <p className="font-medium text-white">{contribution.name} {contribution.surname}</p>
                 <p className="mt-1 text-sm text-gray-400">{formatDateZA(contribution.createdAt)}</p>
@@ -83,8 +90,8 @@ export function ContributorsList({ contributions }: { contributions: PublicContr
   );
 }
 
-export function GroupOrderStatusBadge({ status }: { status: GroupOrder["status"] }) {
-  const labels: Record<GroupOrder["status"], string> = {
+export function GroupOrderStatusBadge({ status }: { status: GroupOrderStatus }) {
+  const labels: Record<GroupOrderStatus, string> = {
     upcoming: "Upcoming",
     confirmed: "Confirmed",
     awaiting_fulfilment: "Awaiting fulfilment",
@@ -92,7 +99,7 @@ export function GroupOrderStatusBadge({ status }: { status: GroupOrder["status"]
     completed: "Completed",
     expired: "Expired",
   };
-  const colors: Record<GroupOrder["status"], string> = {
+  const colors: Record<GroupOrderStatus, string> = {
     upcoming: "bg-eskort-yellow/20 text-eskort-yellow",
     confirmed: "bg-green-900/40 text-green-300",
     awaiting_fulfilment: "bg-blue-900/40 text-blue-300",
@@ -103,7 +110,7 @@ export function GroupOrderStatusBadge({ status }: { status: GroupOrder["status"]
   return <span className={`inline-flex min-h-8 items-center rounded-full px-3 text-xs font-bold uppercase ${colors[status]}`}>{labels[status]}</span>;
 }
 
-export function DeadlineNotice({ order }: { order: GroupOrder }) {
+export function DeadlineNotice({ order }: { order: Pick<GroupOrder, "deadline"> }) {
   return (
     <p className="rounded-xl bg-blue-100 px-4 py-4 text-blue-900" role="status">
       ⏳ Deadline {new Date(order.deadline).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })} · <strong>{deadlineLabel(order.deadline)}</strong>

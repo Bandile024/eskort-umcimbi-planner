@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "crypto"
 import type { Order } from "@/lib/types"
+import { getGroupOrderPublicOrigin } from "@/lib/groupOrderUtils"
 
 export type PayFastMode = "sandbox" | "live"
 export type PayFastGatewayStatus = "COMPLETE" | "PENDING" | "FAILED" | "CANCELLED"
@@ -380,7 +381,6 @@ export function createPayFastCheckout(input: {
 
 export function createPayFastGroupContributionCheckout(input: {
   contributionId: string
-  groupOrderId: string
   token: string
   amount: number
   customer: PayFastCustomer
@@ -390,7 +390,7 @@ export function createPayFastGroupContributionCheckout(input: {
   if (config.mode !== "sandbox") {
     throw new Error("Group-order contributions are available in PayFast Sandbox only.")
   }
-  const origin = getPublicOrigin(input.request)
+  const origin = getGroupOrderPublicOrigin(getPublicOrigin(input.request))
   const contributionId = input.contributionId.trim()
   const token = encodeURIComponent(input.token)
   const amount = formatAmount(toCents(input.amount))
@@ -407,10 +407,7 @@ export function createPayFastGroupContributionCheckout(input: {
     m_payment_id: contributionId,
     amount,
     item_name: "Eskort Group Order Contribution",
-    item_description: `Contribution to group order ${input.groupOrderId}`,
-    custom_str1: input.groupOrderId.trim(),
-    custom_str2: contributionId,
-    custom_str5: "group_contribution",
+    item_description: "Contribution to a group order",
   }
   const fields: Record<string, string> = {}
   for (const [key, value] of Object.entries(rawFields)) {
