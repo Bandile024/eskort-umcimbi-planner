@@ -276,6 +276,7 @@ export default function PublicGroupClient({ token, mode }: { token: string; mode
         <GroupOrderStatusBadge status={order.status} />
       </header>
       <DeadlineNotice order={order} />
+      <ContributionProgress order={order} />
       {expired && <p className="rounded-lg bg-red-900/30 p-4 text-red-100" role="status">Deadline passed. Contributions will be refunded.</p>}
       {order.status === "confirmed" && <p className="rounded-lg bg-green-900/30 p-4 text-green-100" role="status">Fully paid! The organizer will confirm pickup or delivery.</p>}
       {order.status === "awaiting_fulfilment" && <p className="rounded-lg bg-green-900/30 p-4 text-green-100" role="status">Fully paid! Fulfilment: {order.fulfilmentMethod === "pickup" ? "Pickup" : "Delivery"}.</p>}
