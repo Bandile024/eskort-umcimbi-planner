@@ -43,6 +43,17 @@ export interface GroupOrder {
   createdAt: string;
 }
 
+export interface PublicGroupOrder {
+  name: string;
+  organizerName: string;
+  items: Array<Pick<GroupOrderItem, "name" | "imageUrl" | "quantity" | "unitPrice" | "lineTotal">>;
+  total: number;
+  amountPaid: number;
+  deadline: string;
+  status: GroupOrderStatus;
+  fulfilmentMethod: FulfilmentMethod | null;
+}
+
 export interface Contribution {
   id: string;
   groupOrderId: string;
@@ -54,10 +65,7 @@ export interface Contribution {
   createdAt: string;
 }
 
-export type PublicContribution = Pick<
-  Contribution,
-  "id" | "name" | "surname" | "amount" | "status" | "createdAt"
->;
+export type PublicContribution = Pick<Contribution, "name" | "surname" | "amount" | "createdAt">;
 
 export interface Notification {
   id: string;

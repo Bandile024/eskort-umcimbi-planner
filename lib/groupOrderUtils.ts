@@ -7,6 +7,43 @@ export function formatZAR(amount: number): string {
   }).format(amount)}`;
 }
 
+export function getGroupOrderPublicOrigin(fallbackOrigin?: string): string {
+  const configuredOrigin = process.env.NEXT_PUBLIC_GROUP_ORDER_SITE_URL?.trim();
+  if (!configuredOrigin) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Group orders require a dedicated public group-order domain.");
+    }
+    if (!fallbackOrigin) throw new Error("Could not determine the public group-order domain.");
+    return new URL(fallbackOrigin).origin;
+  }
+
+  const url = new URL(configuredOrigin);
+  if (
+    (url.protocol !== "https:" && url.protocol !== "http:")
+    || url.pathname !== "/"
+    || url.search
+    || url.hash
+  ) {
+    throw new Error("NEXT_PUBLIC_GROUP_ORDER_SITE_URL must be an origin such as https://groups.example.com.");
+  }
+  if (process.env.NODE_ENV === "production" && url.protocol !== "https:") {
+    throw new Error("The public group-order domain must use HTTPS in production.");
+  }
+
+  const appOrigin = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (process.env.NODE_ENV === "production") {
+    if (!appOrigin) throw new Error("NEXT_PUBLIC_SITE_URL must identify the signed-in app domain.");
+    if (new URL(appOrigin).origin === url.origin) {
+      throw new Error("The public group-order domain must be separate from the signed-in app domain.");
+    }
+  }
+  return url.origin;
+}
+
+export function getGroupOrderPublicUrl(token: string, fallbackOrigin?: string): string {
+  return `${getGroupOrderPublicOrigin(fallbackOrigin)}/group/${encodeURIComponent(token)}`;
+}
+
 export function daysLeft(deadline: string, now = new Date()): number {
   const end = new Date(deadline);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());

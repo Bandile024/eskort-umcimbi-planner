@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Copy, Eye } from "lucide-react";
 import { createGroupOrderFromCart } from "@/lib/groupOrders";
-import { formatZAR } from "@/lib/groupOrderUtils";
+import { formatZAR, getGroupOrderPublicOrigin, getGroupOrderPublicUrl } from "@/lib/groupOrderUtils";
 import type { GroupOrder, GroupOrderItem } from "@/types/groupOrder";
 import { GroupOrderSummary } from "@/components/group-order/GroupOrderUI";
 
@@ -38,6 +38,7 @@ export default function GroupOrderSetupClient({
   const [groupName, setGroupName] = useState("");
   const [deadline, setDeadline] = useState("");
   const [order, setOrder] = useState<GroupOrder | null>(null);
+  const [publicUrl, setPublicUrl] = useState("");
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -61,13 +62,12 @@ export default function GroupOrderSetupClient({
   }, []);
 
   const copyLink = async () => {
-    if (!order) return;
-    const url = `${window.location.origin}/group/${order.token}`;
+    if (!publicUrl) return;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(publicUrl);
       setStatusMessage("Group order link copied. You can paste it into a message to your group.");
     } catch {
-      setStatusMessage(`Copy this group order link: ${url}`);
+      setStatusMessage(`Copy this group order link: ${publicUrl}`);
     }
   };
 
@@ -77,6 +77,12 @@ export default function GroupOrderSetupClient({
     setStatusMessage("");
     if (cartItems.length === 0) {
       setError("Your cart is empty. Add items before creating a group order.");
+      return;
+    }
+    try {
+      getGroupOrderPublicOrigin(window.location.origin);
+    } catch (issue) {
+      setError(issue instanceof Error ? issue.message : "The public group-order domain is not configured.");
       return;
     }
     setSaving(true);
@@ -97,6 +103,7 @@ export default function GroupOrderSetupClient({
         organizerName,
         items,
       });
+      setPublicUrl(getGroupOrderPublicUrl(createdOrder.token, window.location.origin));
       setOrder(createdOrder);
       setCartItems([]);
       try {
@@ -131,11 +138,11 @@ export default function GroupOrderSetupClient({
             <p className="text-sm text-gray-300">These products are saved to the group order. The checkout cart is now clear.</p>
             {error && <p role="alert" aria-live="polite" className="rounded-lg bg-red-900/30 p-3 text-sm text-red-200">{error}</p>}
             <GroupOrderSummary order={order} />
-            <div className="break-all rounded-lg border border-gray-700 bg-eskort-dark-bg p-4 text-sm text-eskort-yellow">{`${window.location.origin}/group/${order.token}`}</div>
+            <div className="break-all rounded-lg border border-gray-700 bg-eskort-dark-bg p-4 text-sm text-eskort-yellow">{publicUrl}</div>
             {statusMessage && <p role="status" aria-live="polite" className="text-sm text-gray-300">{statusMessage}</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => void copyLink()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-gray-600 px-4 font-bold text-white hover:border-eskort-yellow"><Copy size={17} />Copy group link</button>
-              <Link href={`/group/${order.token}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-eskort-red px-4 font-bold text-white"><Eye size={17} />Preview group order</Link>
+              <a href={publicUrl} rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-eskort-red px-4 font-bold text-white"><Eye size={17} />Preview group order</a>
             </div>
             <Link href={`/my-orders/group/${order.id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-eskort-yellow hover:underline">Open organizer dashboard</Link>
           </div>

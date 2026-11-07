@@ -7,6 +7,7 @@ import type {
   GroupOrderStatus,
   Notification,
   PublicContribution,
+  PublicGroupOrder,
 } from "@/types/groupOrder";
 
 export interface PayFastGroupCheckout {
@@ -16,7 +17,6 @@ export interface PayFastGroupCheckout {
 }
 
 export interface PublicContributionPayment {
-  id: string;
   name: string;
   amount: number;
   status: Contribution["status"];
@@ -47,7 +47,7 @@ export function createGroupOrderFromCart(input: {
   return request("create", input);
 }
 
-export function getGroupOrderByToken(token: string): Promise<GroupOrder | null> {
+export function getGroupOrderByToken(token: string): Promise<PublicGroupOrder | null> {
   return request("getByToken", { token });
 }
 

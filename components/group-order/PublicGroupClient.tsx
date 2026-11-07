@@ -10,7 +10,7 @@ import {
   startContributionPayment,
 } from "@/lib/groupOrders";
 import { deadlineLabel, formatZAR, remainingBalance, validateContribution } from "@/lib/groupOrderUtils";
-import type { Contribution, GroupOrder, PublicContribution } from "@/types/groupOrder";
+import type { Contribution, PublicContribution, PublicGroupOrder } from "@/types/groupOrder";
 import ContributionPaymentModal from "@/components/group-order/ContributionPaymentModal";
 import {
   ContributionProgress,
@@ -29,7 +29,7 @@ const emptyFields: FormFields = { name: "", surname: "", amount: "" };
 export default function PublicGroupClient({ token, mode }: { token: string; mode: PublicMode }) {
   const searchParams = useSearchParams();
   const contributionId = searchParams.get("contribution_id");
-  const [order, setOrder] = useState<GroupOrder | null>(null);
+  const [order, setOrder] = useState<PublicGroupOrder | null>(null);
   const [contributions, setContributions] = useState<PublicContribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");

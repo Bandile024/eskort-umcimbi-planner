@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Copy } from "lucide-react";
 import { getGroupOrderById, listContributions, updateDeadline } from "@/lib/groupOrders";
-import { deadlineLabel, formatDateZA, formatZAR, remainingBalance } from "@/lib/groupOrderUtils";
+import {
+  deadlineLabel,
+  formatDateZA,
+  formatZAR,
+  getGroupOrderPublicUrl,
+  remainingBalance,
+} from "@/lib/groupOrderUtils";
 import type { Contribution, GroupOrder } from "@/types/groupOrder";
 import {
   ContributionProgress,
@@ -45,11 +51,22 @@ export default function OrganizerGroupClient({ id, userId }: { id: string; userI
 
   useEffect(() => { void load(); }, [load]);
 
-  const link = typeof window !== "undefined" && order ? `${window.location.origin}/group/${order.token}` : "";
+  let link = "";
+  let publicLinkError = "";
+  if (typeof window !== "undefined" && order) {
+    try {
+      link = getGroupOrderPublicUrl(order.token, window.location.origin);
+    } catch (issue) {
+      publicLinkError = issue instanceof Error ? issue.message : "The public group-order domain is not configured.";
+    }
+  }
   const deadlineEditable = order?.status === "upcoming" && deadlineLabel(order.deadline) !== "Deadline passed";
 
   const copyLink = async () => {
-    if (!link) return;
+    if (!link) {
+      setMessage(publicLinkError || "The public group-order link is unavailable.");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(link);
       setMessage("Group link copied.");
@@ -59,7 +76,10 @@ export default function OrganizerGroupClient({ id, userId }: { id: string; userI
   };
 
   const copyProgressUpdate = async () => {
-    if (!order) return;
+    if (!order || !link) {
+      setMessage(publicLinkError || "The public group-order link is unavailable.");
+      return;
+    }
     const text = `We're ${formatZAR(remainingBalance(order))} away from paying for ${order.name}! Chip in: ${link}`;
     try {
       await navigator.clipboard.writeText(text);
@@ -98,12 +118,13 @@ export default function OrganizerGroupClient({ id, userId }: { id: string; userI
         <GroupOrderStatusBadge status={order.status} />
       </header>
       <div className="flex flex-wrap gap-3 rounded-xl border border-gray-700 bg-eskort-dark-card p-4">
-        <button type="button" onClick={() => void copyLink()} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-600 px-4 font-semibold text-white hover:border-eskort-yellow"><Copy size={16} />Copy link</button>
-        <button type="button" onClick={() => void copyProgressUpdate()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-eskort-red px-4 font-semibold text-white"><Copy size={16} />Copy progress update</button>
-        <Link href={`/group/${order.token}`} className="inline-flex min-h-11 items-center rounded-lg border border-gray-600 px-4 font-semibold text-white">Public page</Link>
+        <button type="button" onClick={() => void copyLink()} disabled={!link} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-600 px-4 font-semibold text-white hover:border-eskort-yellow disabled:opacity-50"><Copy size={16} />Copy link</button>
+        <button type="button" onClick={() => void copyProgressUpdate()} disabled={!link} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-eskort-red px-4 font-semibold text-white disabled:opacity-50"><Copy size={16} />Copy progress update</button>
+        {link && <a href={link} rel="noreferrer" className="inline-flex min-h-11 items-center rounded-lg border border-gray-600 px-4 font-semibold text-white">Public page</a>}
       </div>
       {message && <p role="status" aria-live="polite" className="rounded-lg bg-blue-900/30 p-3 text-blue-100">{message}</p>}
       {link && <p className="break-all text-sm text-gray-400">{link}</p>}
+      {publicLinkError && <p role="alert" className="rounded-lg bg-red-900/30 p-3 text-sm text-red-200">{publicLinkError}</p>}
       {(order.status === "confirmed" || (order.status === "awaiting_fulfilment" && !order.fulfilmentMethod)) && <Link href={`/my-orders/group/${order.id}/fulfilment`} className="flex min-h-12 items-center justify-center rounded-lg bg-eskort-yellow px-5 font-bold text-black">Confirm pickup or delivery</Link>}
       <ContributionProgress order={order} />
       <GroupOrderSummary order={order} />
