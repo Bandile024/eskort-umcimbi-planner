@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart, User, ChevronDown, Menu, X, LogOut } from "lucide-react";
+import { ShoppingCart, User, ChevronDown, Menu, X, LogOut, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { listNotifications, markNotificationsRead } from "@/lib/groupOrders";
+import type { Notification } from "@/types/groupOrder";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -13,6 +15,38 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useState(0);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState("");
+  const notificationUserId = user?.id;
+
+  const fetchNotifications = useCallback(async () => {
+    if (!notificationUserId) return;
+    setNotificationsLoading(true);
+    setNotificationsError("");
+    try {
+      setNotifications(await listNotifications(notificationUserId));
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : "Could not load notifications.");
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [notificationUserId]);
+
+  useEffect(() => {
+    if (notificationUserId) void fetchNotifications();
+  }, [notificationUserId, fetchNotifications]);
+
+  const markAllRead = async () => {
+    if (!user) return;
+    try {
+      await markNotificationsRead(user.id);
+      setNotifications((current) => current.map((notification) => ({ ...notification, read: true })));
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : "Could not update notifications.");
+    }
+  };
 
   useEffect(() => {
     const updateCartCount = () => {
@@ -69,6 +103,28 @@ export default function Navbar() {
               </span>
             </Link>
             {user ? (
+              <>
+              <div className="relative">
+                <button type="button" aria-label={`Notifications${notifications.some((item) => !item.read) ? `, ${notifications.filter((item) => !item.read).length} unread` : ""}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)} className="relative flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 text-gray-200 hover:bg-white/10 hover:text-white">
+                  <Bell size={20} />
+                  {notifications.filter((item) => !item.read).length > 0 && <span className="absolute right-0 top-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-eskort-red px-1 text-[10px] font-bold text-white">{notifications.filter((item) => !item.read).length}</span>}
+                </button>
+                {notificationsOpen && <div className="absolute right-0 top-full z-[60] mt-2 w-[min(92vw,22rem)] rounded-xl border border-gray-700 bg-eskort-black p-3 shadow-2xl">
+                  <div className="flex items-center justify-between gap-2 border-b border-gray-700 pb-2">
+                    <h2 className="font-semibold text-white">Notifications</h2>
+                    <button type="button" onClick={() => void markAllRead()} disabled={!notifications.some((item) => !item.read)} className="min-h-10 px-2 text-xs font-semibold text-eskort-yellow disabled:opacity-50">Mark all read</button>
+                  </div>
+                  {notificationsLoading ? <div className="space-y-2 py-3" aria-label="Loading notifications">{[1, 2].map((item) => <div key={item} className="h-14 animate-pulse rounded bg-gray-800" />)}</div>
+                    : notificationsError ? <div className="py-3 text-sm text-red-200"><p>{notificationsError}</p><button type="button" onClick={() => void fetchNotifications()} className="mt-2 min-h-10 text-eskort-yellow underline">Retry</button></div>
+                    : notifications.length === 0 ? <p className="py-6 text-center text-sm text-gray-400">You&apos;re all caught up.</p>
+                    : <ul className="max-h-80 overflow-y-auto">{notifications.map((notification) => <li key={notification.id} className="border-b border-gray-800 last:border-0">
+                      <Link href={notification.type === "confirm_fulfilment" ? `/my-orders/group/${notification.groupOrderId}/fulfilment` : `/my-orders/group/${notification.groupOrderId}`} onClick={() => setNotificationsOpen(false)} className="block rounded-lg px-2 py-3 hover:bg-white/5">
+                        <p className={`text-sm font-semibold ${notification.read ? "text-gray-300" : "text-white"}`}>{notification.title}{!notification.read && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-eskort-yellow" aria-label="Unread" />}</p>
+                        <p className="mt-1 text-xs text-gray-400">{notification.body}</p>
+                      </Link>
+                    </li>)}</ul>}
+                </div>}
+              </div>
               <div className="relative hidden md:block">
                 <button
                   type="button"
@@ -93,6 +149,7 @@ export default function Navbar() {
                   </div>
                 )}
               </div>
+              </>
             ) : (
               <Link
                 href="/login"

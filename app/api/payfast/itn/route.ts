@@ -105,6 +105,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid gross amount" }, { status: 400 })
     }
     const supabaseAdmin = createSupabaseAdminClient()
+    const { data: groupTransaction, error: groupTransactionError } = await supabaseAdmin
+      .from("group_payment_transactions")
+      .select("payfast_m_payment_id, payfast_pf_payment_id, amount_cents, payfast_payment_status")
+      .eq("payfast_m_payment_id", mPaymentId)
+      .maybeSingle()
+
+    if (groupTransactionError) {
+      console.error(`${logPrefix} Group transaction lookup failed`, {
+        mPaymentId,
+        error: groupTransactionError.message,
+      })
+      return NextResponse.json({ error: "Group transaction lookup failed" }, { status: 500 })
+    }
+
+    if (groupTransaction) {
+      if (amountCents !== Number(groupTransaction.amount_cents)) {
+        console.error(`${logPrefix} Group payment amount mismatch`, { mPaymentId })
+        return NextResponse.json({ error: "Payment amount mismatch" }, { status: 400 })
+      }
+
+      const previousStatus = groupTransaction.payfast_payment_status?.toUpperCase()
+      if (previousStatus === "COMPLETE" && paymentStatus !== "COMPLETE") {
+        console.info(`${logPrefix} Ignored stale group notification after COMPLETE`, { mPaymentId, paymentStatus })
+        return new NextResponse("OK", { status: 200 })
+      }
+
+      const { error: processError } = await supabaseAdmin.rpc("process_group_contribution_itn", {
+        p_m_payment_id: mPaymentId,
+        p_pf_payment_id: pfPaymentId,
+        p_payment_status: paymentStatus,
+        p_amount_cents: amountCents,
+      })
+      if (processError) {
+        console.error(`${logPrefix} Group contribution ITN processing failed`, {
+          mPaymentId,
+          error: processError.message,
+        })
+        return NextResponse.json({ error: "Failed to process group contribution" }, { status: 500 })
+      }
+
+      console.info(`${logPrefix} Group contribution notification processed`, {
+        mPaymentId,
+        pfPaymentId,
+        paymentStatus,
+      })
+      return new NextResponse("OK", { status: 200 })
+    }
+
     const { data: transaction, error: txError } = await supabaseAdmin
       .from("payment_transactions")
       .select("order_id, amount_cents, payfast_payment_status")
