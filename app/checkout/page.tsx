@@ -47,8 +47,13 @@ export default function CheckoutPage() {
   const [subtotal, setSubtotal] = useState(0);
 
   useEffect(() => {
-    const saved = localStorage.getItem("eskort-checkout-cart");
-    if (saved) {
+    const updateCart = () => {
+      const saved = localStorage.getItem("eskort-checkout-cart");
+      if (!saved) {
+        setCartItems([]);
+        setSubtotal(0);
+        return;
+      }
       try {
         const parsed = JSON.parse(saved) as CartPayload;
         setCartItems(parsed.products || []);
@@ -57,7 +62,15 @@ export default function CheckoutPage() {
         setCartItems([]);
         setSubtotal(0);
       }
-    }
+    };
+
+    updateCart();
+    window.addEventListener("storage", updateCart);
+    window.addEventListener("eskort-cart-updated", updateCart);
+    return () => {
+      window.removeEventListener("storage", updateCart);
+      window.removeEventListener("eskort-cart-updated", updateCart);
+    };
   }, []);
 
   useEffect(() => {

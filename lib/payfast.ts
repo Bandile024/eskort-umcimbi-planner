@@ -378,6 +378,48 @@ export function createPayFastCheckout(input: {
   }
 }
 
+export function createPayFastGroupContributionCheckout(input: {
+  contributionId: string
+  groupOrderId: string
+  token: string
+  amount: number
+  customer: PayFastCustomer
+  request?: Request
+}): PayFastCheckoutResult {
+  const config = getPayFastConfig()
+  if (config.mode !== "sandbox") {
+    throw new Error("Group-order contributions are available in PayFast Sandbox only.")
+  }
+  const origin = getPublicOrigin(input.request)
+  const contributionId = input.contributionId.trim()
+  const token = encodeURIComponent(input.token)
+  const amount = formatAmount(toCents(input.amount))
+  const rawFields: Record<string, string | undefined> = {
+    merchant_id: config.merchantId,
+    merchant_key: config.merchantKey,
+    return_url: `${origin}/group/${token}/success?contribution_id=${encodeURIComponent(contributionId)}`,
+    cancel_url: `${origin}/group/${token}/cancelled?contribution_id=${encodeURIComponent(contributionId)}`,
+    notify_url: `${origin}/api/payfast/itn`,
+    name_first: input.customer.name_first?.trim() || undefined,
+    name_last: input.customer.name_last?.trim() || undefined,
+    email_address: input.customer.email_address?.trim() || undefined,
+    cell_number: input.customer.cell_number?.trim() || undefined,
+    m_payment_id: contributionId,
+    amount,
+    item_name: "Eskort Group Order Contribution",
+    item_description: `Contribution to group order ${input.groupOrderId}`,
+    custom_str1: input.groupOrderId.trim(),
+    custom_str2: contributionId,
+    custom_str5: "group_contribution",
+  }
+  const fields: Record<string, string> = {}
+  for (const [key, value] of Object.entries(rawFields)) {
+    if (value !== undefined && value.trim() !== "") fields[key] = value.trim()
+  }
+  fields.signature = signPayFastFields(fields, config.passphrase)
+  return { url: config.checkoutUrl, fields }
+}
+
 export function debugPayFastSignature(input: {
   order: Pick<Order, "id" | "order_number" | "total_amount">
   customer: PayFastCustomer

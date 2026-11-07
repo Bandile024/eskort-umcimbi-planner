@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Package, ChevronLeft, Search, Filter, RefreshCw } from "lucide-react"
 import type { DashboardStats, Order, OrderStatus, PaymentStatus, PaginatedOrders } from "@/lib/types"
 import { supabase } from "@/lib/supabase"
+import { adminListGroupOrders } from "@/lib/groupOrders"
 
 interface AdminDashboardClientProps {
   adminName: string
@@ -47,10 +48,13 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalOrders, setTotalOrders] = useState(0)
+  const [groupOrderCount, setGroupOrderCount] = useState(0)
+  const [groupOrdersLoading, setGroupOrdersLoading] = useState(true)
+  const [groupOrdersError, setGroupOrdersError] = useState("")
 
   const limit = 20
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setStatsLoading(true)
     try {
       const response = await fetch("/api/admin/dashboard")
@@ -63,9 +67,22 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
     } finally {
       setStatsLoading(false)
     }
-  }
+  }, [])
 
-  const fetchOrders = async () => {
+  const fetchGroupOrders = useCallback(async () => {
+    setGroupOrdersLoading(true)
+    setGroupOrdersError("")
+    try {
+      const groupOrders = await adminListGroupOrders()
+      setGroupOrderCount(groupOrders.filter((order) => ["upcoming", "confirmed", "awaiting_fulfilment", "ready"].includes(order.status)).length)
+    } catch (error) {
+      setGroupOrdersError(error instanceof Error ? error.message : "Could not load group orders.")
+    } finally {
+      setGroupOrdersLoading(false)
+    }
+  }, [])
+
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -89,16 +106,16 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, statusFilter, paymentFilter, currentPage])
 
   useEffect(() => {
     fetchStats()
-    fetchOrders()
-  }, [])
+    fetchGroupOrders()
+  }, [fetchStats, fetchGroupOrders])
 
   useEffect(() => {
     fetchOrders()
-  }, [searchTerm, statusFilter, paymentFilter, currentPage])
+  }, [fetchOrders])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,6 +134,7 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
   const handleRefresh = () => {
     fetchStats()
     fetchOrders()
+    fetchGroupOrders()
   }
 
   const formatCurrency = (amount: number) => {
@@ -223,6 +241,22 @@ export default function AdminDashboardClient({ adminName }: AdminDashboardClient
             </div>
           </div>
         )}
+
+        <section className="mb-8 rounded-xl border border-eskort-yellow/30 bg-eskort-dark-card p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-eskort-yellow">Group Orders</p>
+              <h2 className="mt-1 font-display text-3xl text-white">ORDERS IN PROGRESS</h2>
+              {groupOrdersLoading ? <p className="mt-1 text-sm text-gray-400">Loading group orders…</p>
+                : groupOrdersError ? <p role="alert" className="mt-1 text-sm text-red-300">{groupOrdersError}</p>
+                  : <p className="mt-1 text-sm text-gray-400">{groupOrderCount} active group orders</p>}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {groupOrdersError && <button type="button" onClick={() => void fetchGroupOrders()} className="min-h-11 rounded-lg border border-gray-600 px-4 font-semibold text-white">Retry</button>}
+              <Link href="/admin/group-orders" className="inline-flex min-h-11 items-center rounded-lg bg-eskort-red px-5 font-bold text-white">View Group Orders</Link>
+            </div>
+          </div>
+        </section>
 
         <div className="bg-eskort-dark-card border border-gray-700 rounded-xl p-6">
           <div className="flex items-center justify-between mb-6">

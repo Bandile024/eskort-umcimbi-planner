@@ -1,9 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { ChevronLeft, Package } from "lucide-react"
 import type { OrderWithItems } from "@/lib/types"
+import type { GroupOrder } from "@/types/groupOrder"
+import { listMyGroupOrders } from "@/lib/groupOrders"
+import { deadlineLabel, formatZAR } from "@/lib/groupOrderUtils"
+import { ContributionProgress, GroupOrderStatusBadge } from "@/components/group-order/GroupOrderUI"
 
 interface OrdersClientProps {
   userId: string
@@ -12,10 +16,30 @@ interface OrdersClientProps {
 export default function OrdersClient({ userId }: OrdersClientProps) {
   const [orders, setOrders] = useState<OrderWithItems[]>([])
   const [loading, setLoading] = useState(true)
+  const [groupOrders, setGroupOrders] = useState<GroupOrder[]>([])
+  const [groupOrdersLoading, setGroupOrdersLoading] = useState(true)
+  const [groupOrdersError, setGroupOrdersError] = useState("")
+  const [activeGroupTab, setActiveGroupTab] = useState<"upcoming" | "confirmed">("upcoming")
 
   useEffect(() => {
     fetchOrders()
   }, [])
+
+  const fetchGroupOrders = useCallback(async () => {
+    setGroupOrdersLoading(true)
+    setGroupOrdersError("")
+    try {
+      setGroupOrders(await listMyGroupOrders(userId))
+    } catch (error) {
+      setGroupOrdersError(error instanceof Error ? error.message : "Could not load group orders.")
+    } finally {
+      setGroupOrdersLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    void fetchGroupOrders()
+  }, [fetchGroupOrders])
 
   const fetchOrders = async () => {
     try {
@@ -95,6 +119,69 @@ export default function OrdersClient({ userId }: OrdersClientProps) {
           </h1>
           <p className="text-gray-500 text-sm mt-2">View your order history and track deliveries</p>
         </div>
+
+        <section className="mb-8 rounded-xl border border-gray-700 bg-eskort-dark-card p-4 sm:p-6">
+          <div className="mb-5">
+            <h2 className="font-display text-3xl text-white">GROUP ORDERS</h2>
+            <p className="mt-1 text-sm text-gray-400">Track group contributions and fulfilment.</p>
+          </div>
+          <div className="mb-5 grid grid-cols-2 rounded-lg border border-gray-700 p-1" role="tablist" aria-label="Group order status">
+            {(["upcoming", "confirmed"] as const).map((tab) => (
+              <button key={tab} type="button" role="tab" aria-selected={activeGroupTab === tab} onClick={() => setActiveGroupTab(tab)} className={`min-h-11 rounded-md px-3 font-semibold capitalize ${activeGroupTab === tab ? "bg-eskort-red text-white" : "text-gray-300 hover:bg-white/5"}`}>
+                {tab}
+              </button>
+            ))}
+          </div>
+          {groupOrdersLoading ? (
+            <div className="space-y-3" aria-label="Loading group orders">{[1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-lg bg-gray-800/60" />)}</div>
+          ) : groupOrdersError ? (
+            <div className="rounded-lg border border-red-800 bg-red-900/20 p-4 text-red-200">
+              <p>{groupOrdersError}</p>
+              <button type="button" onClick={() => void fetchGroupOrders()} className="mt-3 min-h-11 rounded-lg border border-red-500 px-4 font-semibold">Retry</button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4">
+                {groupOrders
+                  .filter((order) => activeGroupTab === "upcoming"
+                    ? order.status === "upcoming"
+                    : ["confirmed", "awaiting_fulfilment", "ready", "completed"].includes(order.status))
+                  .map((order) => (
+                    <article key={order.id} className="space-y-3 rounded-xl border border-gray-700 bg-gray-900/30 p-4">
+                      <Link href={`/my-orders/group/${order.id}`} className="flex flex-wrap items-start justify-between gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-eskort-yellow">
+                        <div>
+                          <h3 className="font-bold text-white">{order.name}</h3>
+                          <p className="mt-1 text-sm text-gray-400">{activeGroupTab === "upcoming" ? deadlineLabel(order.deadline) : "Group order update"}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <GroupOrderStatusBadge status={order.status} />
+                          <strong className="text-white">{formatZAR(order.total)}</strong>
+                        </div>
+                      </Link>
+                      <ContributionProgress order={order} />
+                      {["confirmed", "awaiting_fulfilment"].includes(order.status) && !order.fulfilmentMethod && (
+                        <Link href={`/my-orders/group/${order.id}/fulfilment`} className="flex min-h-11 items-center justify-center rounded-lg bg-eskort-yellow px-4 font-bold text-black">Confirm pickup or delivery</Link>
+                      )}
+                    </article>
+                  ))}
+                {!groupOrders.some((order) => activeGroupTab === "upcoming" ? order.status === "upcoming" : ["confirmed", "awaiting_fulfilment", "ready", "completed"].includes(order.status)) && (
+                  <p className="rounded-lg border border-dashed border-gray-600 p-6 text-center text-gray-300">No {activeGroupTab} group orders yet.</p>
+                )}
+              </div>
+              <section className="mt-6 border-t border-gray-700 pt-5">
+                <h3 className="font-display text-2xl text-white">EXPIRED</h3>
+                {groupOrders.filter((order) => order.status === "expired").length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-400">No expired group orders.</p>
+                ) : groupOrders.filter((order) => order.status === "expired").map((order) => (
+                  <Link key={order.id} href={`/my-orders/group/${order.id}`} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-700 p-4">
+                    <span className="font-semibold text-white">{order.name}</span>
+                    <span className="rounded-full bg-yellow-900/40 px-3 py-1 text-xs font-bold text-yellow-200">{order.refundsProcessed ? "Refunds processed" : "Refund pending"}</span>
+                  </Link>
+                ))}
+              </section>
+            </>
+          )}
+        </section>
 
         <div className="bg-eskort-dark-card border border-gray-700 rounded-xl p-6">
           {loading ? (
