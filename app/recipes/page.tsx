@@ -109,6 +109,7 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [activeFilter, setActiveFilter] = useState<TimeFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeRecipeIndex, setActiveRecipeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -163,8 +164,21 @@ export default function RecipesPage() {
     (currentPage - 1) * recipesPerPage,
     currentPage * recipesPerPage
   );
-  const featuredRecipe = recipes[0];
+  const featuredRecipe =
+    filteredRecipes[activeRecipeIndex] ?? filteredRecipes[0] ?? recipes[0];
   const featuredTitleWords = featuredRecipe?.name.split(" ") ?? [];
+  const featuredVideo = [
+    "/videos/recipes.hero.mp4",
+    "/videos/recipes.second.mp4",
+    "/videos/recipes.third.mp4",
+  ][activeRecipeIndex];
+  const lastFeaturedRecipeIndex = Math.min(2, filteredRecipes.length - 1);
+  const selectNextFeaturedRecipe = () =>
+    setActiveRecipeIndex((index) =>
+      Math.min(lastFeaturedRecipeIndex, index + 1)
+    );
+  const selectPreviousFeaturedRecipe = () =>
+    setActiveRecipeIndex((index) => Math.max(0, index - 1));
 
   return (
     <div className="min-h-screen bg-eskort-cream-light text-eskort-black">
@@ -246,31 +260,48 @@ export default function RecipesPage() {
           )}
 
           <div className="flex items-center gap-2 sm:gap-4 lg:h-full">
-            <ChevronLeft
-              size={42}
-              strokeWidth={3}
-              aria-hidden="true"
-              className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
-            />
+            <button
+              type="button"
+              aria-label="Previous featured recipe"
+              disabled={activeRecipeIndex === 0}
+              onClick={selectPreviousFeaturedRecipe}
+              className="shrink-0 disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ChevronLeft
+                size={42}
+                strokeWidth={3}
+                aria-hidden="true"
+                className="text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
+              />
+            </button>
             <div className="relative aspect-video min-w-0 flex-1 overflow-hidden rounded-card border border-gray-700 bg-[#1f1f1f] text-center shadow-card lg:aspect-auto lg:self-stretch">
             <video
+              key={featuredRecipe?.id ?? "featured-recipe-video"}
               className="absolute inset-0 h-full w-full object-contain"
               controls
               muted
               loop
               playsInline
               preload="metadata"
-              aria-label="Recipes hero video"
+              aria-label={`${featuredRecipe?.name ?? "Featured recipe"} video`}
             >
-              <source src="/videos/recipes.hero.mp4" type="video/mp4" />
+              <source src={featuredVideo} type="video/mp4" />
             </video>
             </div>
-            <ChevronRight
-              size={42}
-              strokeWidth={3}
-              aria-hidden="true"
-              className="shrink-0 cursor-pointer text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
-            />
+            <button
+              type="button"
+              aria-label="Next featured recipe"
+              disabled={activeRecipeIndex >= lastFeaturedRecipeIndex}
+              onClick={selectNextFeaturedRecipe}
+              className="shrink-0 disabled:pointer-events-none disabled:opacity-30"
+            >
+              <ChevronRight
+                size={42}
+                strokeWidth={3}
+                aria-hidden="true"
+                className="text-eskort-black transition duration-200 hover:scale-125 hover:text-eskort-red"
+              />
+            </button>
           </div>
         </div>
       </section>
@@ -297,6 +328,7 @@ export default function RecipesPage() {
               onClick={() => {
                 setActiveFilter(filter.id);
                 setCurrentPage(1);
+                setActiveRecipeIndex(0);
               }}
               aria-pressed={activeFilter === filter.id}
               className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
@@ -323,9 +355,9 @@ export default function RecipesPage() {
             <div className="grid grid-cols-[12%_minmax(0,1fr)_12%] items-center gap-1 sm:grid-cols-[15%_minmax(0,1fr)_15%] sm:gap-3">
               <button
                 type="button"
-                aria-label="Previous recipe page"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                aria-label="Previous featured recipe"
+                disabled={activeRecipeIndex === 0}
+                onClick={selectPreviousFeaturedRecipe}
                 className="justify-self-center disabled:pointer-events-none disabled:opacity-30"
               >
                 <ChevronLeft
@@ -337,10 +369,19 @@ export default function RecipesPage() {
               </button>
 
               <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
-                {visibleRecipes.map((recipe) => (
+                {visibleRecipes.map((recipe, index) => (
                   <article
                     key={recipe.id}
-                    className="product-card flex h-full min-w-0 flex-col border border-gray-800"
+                    aria-current={
+                      currentPage === 1 && activeRecipeIndex === index
+                        ? "true"
+                        : undefined
+                    }
+                    className={`product-card flex h-full min-w-0 flex-col border border-gray-800 ${
+                      currentPage === 1 && activeRecipeIndex === index
+                        ? "ring-2 ring-eskort-red"
+                        : ""
+                    }`}
                   >
                     <div className="relative block aspect-[16/10] overflow-hidden bg-eskort-dark-card-2">
                       <Image
@@ -374,11 +415,9 @@ export default function RecipesPage() {
 
               <button
                 type="button"
-                aria-label="Next recipe page"
-                disabled={currentPage === pageCount}
-                onClick={() =>
-                  setCurrentPage((page) => Math.min(pageCount, page + 1))
-                }
+                aria-label="Next featured recipe"
+                disabled={activeRecipeIndex >= lastFeaturedRecipeIndex}
+                onClick={selectNextFeaturedRecipe}
                 className="justify-self-center disabled:pointer-events-none disabled:opacity-30"
               >
                 <ChevronRight
